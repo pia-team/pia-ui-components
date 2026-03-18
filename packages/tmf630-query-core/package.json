@@ -1,0 +1,24 @@
+{
+  "name": "@pia-team/pia-ui-tmf630-query-core",
+  "version": "0.1.0",
+  "description": "TMF630 QueryDSL core — framework-agnostic types, operators, serialization",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": ["tmf630", "querydsl", "filter", "serialize"],
+  "license": "MIT"
+}

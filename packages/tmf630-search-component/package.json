@@ -1,0 +1,36 @@
+{
+  "name": "@pia-team/pia-ui-tmf630-search",
+  "version": "0.1.0",
+  "description": "TMF630 QueryDSL Search UI — React components for rich filter panel",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "@radix-ui/react-select": "*"
+  },
+  "dependencies": {
+    "@pia-team/pia-ui-tmf630-query-core": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/react": "^19.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": ["tmf630", "querydsl", "filter", "react", "search"],
+  "license": "MIT"
+}
