@@ -1,0 +1,294 @@
+/**
+ * Prebuilt CSS for TMF630 Filter Components.
+ * Use when NOT using Tailwind. Import alongside variables.css.
+ *
+ *   @import "@pia-team/pia-ui-tmf630-search/variables.css";
+ *   @import "@pia-team/pia-ui-tmf630-search/filter-components.css";
+ */
+
+/* ---- FilterRow --------------------------------------------------- */
+
+[data-slot="filter-row"] {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--filter-spacing-sm, 0.5rem);
+  border-radius: var(--filter-radius, 0.5rem);
+  background: var(--filter-muted, #f1f5f9);
+  padding: var(--filter-spacing-sm, 0.5rem);
+}
+
+[data-slot="field-select"] button,
+[data-slot="operator-select"] button {
+  display: flex;
+  height: var(--filter-input-height, 2.25rem);
+  width: 100%;
+  min-width: var(--filter-select-min-width, 10.625rem);
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: 1px solid var(--filter-border-color, #e2e8f0);
+  background: var(--filter-bg, #fff);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--filter-font-size, 0.875rem);
+  color: var(--filter-fg, #1a202c);
+  box-shadow: var(--filter-shadow, 0 1px 2px 0 rgba(0,0,0,.05));
+}
+
+[data-slot="field-select"] button:focus,
+[data-slot="operator-select"] button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--filter-ring, #6d28d9);
+}
+
+[data-slot="value-input"] {
+  display: flex;
+  height: var(--filter-input-height, 2.25rem);
+  min-width: var(--filter-input-min-width, 11.25rem);
+  border-radius: var(--filter-radius, 0.5rem);
+  border: 1px solid var(--filter-border-color, #e2e8f0);
+  background: var(--filter-bg, #fff);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--filter-font-size, 0.875rem);
+  box-shadow: var(--filter-shadow);
+}
+
+[data-slot="value-input"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--filter-ring, #6d28d9);
+}
+
+[data-slot="remove-button"] {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: none;
+  background: transparent;
+  color: var(--filter-muted-fg, #64748b);
+  transition: all 0.15s ease;
+}
+
+[data-slot="remove-button"]:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--filter-destructive, #ef4444);
+}
+
+[data-slot="filter-error"] {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--filter-destructive, #ef4444);
+}
+
+/* ---- FilterPanel ------------------------------------------------- */
+
+[data-slot="filter-panel-root"] {
+  position: relative;
+}
+
+[data-slot="filter-trigger"] {
+  display: inline-flex;
+  height: var(--filter-input-height, 2.25rem);
+  width: var(--filter-input-height, 2.25rem);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: 1px solid var(--filter-border-color, #e2e8f0);
+  background: var(--filter-bg, #fff);
+  font-size: var(--filter-font-size, 0.875rem);
+  box-shadow: var(--filter-shadow);
+  transition: all 0.15s ease;
+}
+
+[data-slot="filter-trigger"]:hover {
+  background: var(--filter-accent, #f1f5f9);
+}
+
+[data-slot="filter-panel"] {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 50;
+  margin-top: 0.5rem;
+  min-width: var(--filter-panel-min-width, 40rem);
+  border-radius: var(--filter-radius-lg, 0.75rem);
+  border: 1px solid var(--filter-border-color, #e2e8f0);
+  background: var(--filter-card-bg, #fff);
+  padding: var(--filter-spacing-lg, 1.25rem);
+  box-shadow: var(--filter-shadow-lg);
+}
+
+[data-slot="filter-header"] {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+[data-slot="filter-title"] {
+  font-size: var(--filter-font-size, 0.875rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+[data-slot="filter-close"] {
+  display: flex;
+  height: 1.5rem;
+  width: 1.5rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: none;
+  background: transparent;
+  color: var(--filter-muted-fg, #64748b);
+  transition: all 0.15s ease;
+}
+
+[data-slot="filter-close"]:hover {
+  background: var(--filter-muted, #f1f5f9);
+  color: var(--filter-fg, #1a202c);
+}
+
+[data-slot="filter-list"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--filter-spacing-md, 0.75rem);
+}
+
+[data-slot="filter-actions"] {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--filter-spacing-sm, 0.5rem);
+  border-top: 1px solid var(--filter-border-color, #e2e8f0);
+  padding-top: 1rem;
+}
+
+[data-slot="filter-add"] {
+  display: inline-flex;
+  height: var(--filter-input-height, 2.25rem);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: 1px solid var(--filter-border-color, #e2e8f0);
+  background: var(--filter-bg, #fff);
+  padding: 0.5rem 1rem;
+  font-size: var(--filter-font-size, 0.875rem);
+  font-weight: 500;
+  box-shadow: var(--filter-shadow);
+  transition: all 0.15s ease;
+}
+
+[data-slot="filter-add"]:hover {
+  background: var(--filter-accent, #f1f5f9);
+}
+
+[data-slot="filter-apply"] {
+  display: inline-flex;
+  height: var(--filter-input-height, 2.25rem);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: none;
+  background: var(--filter-primary, #6d28d9);
+  padding: 0.5rem 1rem;
+  font-size: var(--filter-font-size, 0.875rem);
+  font-weight: 500;
+  color: var(--filter-primary-fg, #fff);
+  box-shadow: var(--filter-shadow);
+  transition: all 0.15s ease;
+}
+
+[data-slot="filter-apply"]:hover {
+  opacity: 0.9;
+}
+
+[data-slot="filter-clear"] {
+  display: inline-flex;
+  height: var(--filter-input-height, 2.25rem);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1rem;
+  font-size: var(--filter-font-size, 0.875rem);
+  font-weight: 500;
+  color: var(--filter-muted-fg, #64748b);
+  transition: all 0.15s ease;
+}
+
+[data-slot="filter-clear"]:hover {
+  color: var(--filter-destructive, #ef4444);
+}
+
+/* ---- FilterChips ------------------------------------------------- */
+
+[data-slot="filter-chips"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--filter-spacing-sm, 0.5rem);
+}
+
+[data-slot="chips-label"] {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--filter-muted-fg, #64748b);
+}
+
+[data-slot="chip"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--filter-radius, 0.5rem);
+  border: 1px solid rgba(109, 40, 217, 0.2);
+  background: rgba(109, 40, 217, 0.1);
+  padding: 0.25rem 0.25rem 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  color: var(--filter-primary, #6d28d9);
+}
+
+[data-slot="chip-remove"] {
+  display: inline-flex;
+  height: 1rem;
+  width: 1rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: rgba(109, 40, 217, 0.6);
+  transition: color 0.15s ease;
+}
+
+[data-slot="chip-remove"]:hover {
+  color: var(--filter-destructive, #ef4444);
+}
+
+[data-slot="chips-clear-all"] {
+  cursor: pointer;
+  font-size: 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--filter-muted-fg, #64748b);
+  transition: color 0.15s ease;
+}
+
+[data-slot="chips-clear-all"]:hover {
+  color: var(--filter-destructive, #ef4444);
+}

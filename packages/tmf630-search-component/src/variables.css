@@ -1,0 +1,60 @@
+/**
+ * CSS Custom Properties theme for TMF630 Filter Components.
+ * Import this file and define the variables in your app to style
+ * the filter components without Tailwind.
+ *
+ * Usage:
+ *   @import "@pia-team/pia-ui-tmf630-search/variables.css";
+ *
+ *   :root {
+ *     --filter-font-size: 0.875rem;
+ *     --filter-radius: 0.5rem;
+ *     --filter-border-color: #e2e8f0;
+ *     --filter-bg: #ffffff;
+ *     --filter-fg: #1a202c;
+ *     --filter-primary: #6d28d9;
+ *     --filter-primary-fg: #ffffff;
+ *     --filter-muted: #f1f5f9;
+ *     --filter-muted-fg: #64748b;
+ *     --filter-destructive: #ef4444;
+ *     --filter-accent: #f1f5f9;
+ *     --filter-accent-fg: #0f172a;
+ *     --filter-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+ *     --filter-ring: #6d28d9;
+ *   }
+ */
+
+:root {
+  --filter-font-size: 0.875rem;
+  --filter-line-height: 1.25rem;
+  --filter-radius: 0.5rem;
+  --filter-radius-lg: 0.75rem;
+  --filter-spacing-xs: 0.25rem;
+  --filter-spacing-sm: 0.5rem;
+  --filter-spacing-md: 0.75rem;
+  --filter-spacing-lg: 1.25rem;
+
+  --filter-border-color: hsl(214.3 31.8% 91.4%);
+  --filter-bg: hsl(0 0% 100%);
+  --filter-fg: hsl(222.2 84% 4.9%);
+  --filter-card-bg: hsl(0 0% 100%);
+  --filter-popover-bg: hsl(0 0% 100%);
+  --filter-popover-fg: hsl(222.2 84% 4.9%);
+
+  --filter-primary: hsl(262.1 83.3% 57.8%);
+  --filter-primary-fg: hsl(210 40% 98%);
+  --filter-muted: hsl(210 40% 96.1%);
+  --filter-muted-fg: hsl(215.4 16.3% 46.9%);
+  --filter-accent: hsl(210 40% 96.1%);
+  --filter-accent-fg: hsl(222.2 47.4% 11.2%);
+  --filter-destructive: hsl(0 84.2% 60.2%);
+
+  --filter-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --filter-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --filter-ring: hsl(262.1 83.3% 57.8%);
+
+  --filter-input-height: 2.25rem;
+  --filter-input-min-width: 10.625rem;
+  --filter-select-min-width: 10.625rem;
+  --filter-panel-min-width: 40rem;
+}

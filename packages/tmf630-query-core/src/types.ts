@@ -29,11 +29,35 @@ export type FilterOperator =
   | "regex"
   | "regexi";
 
-/** A single filter condition (flat; no AND/OR groups in V1) */
+/** A single filter condition */
 export interface FilterCondition {
   field: string;
   operator: FilterOperator;
   value: string | string[];
+}
+
+/* ------------------------------------------------------------------ */
+/*  V2 — Compound / grouped filters                                    */
+/* ------------------------------------------------------------------ */
+
+/** Logical join for compound filter groups */
+export type FilterLogic = "and" | "or";
+
+/**
+ * A node in a compound filter tree.
+ * Leaves are FilterCondition; branches are FilterGroup.
+ */
+export type FilterNode = FilterCondition | FilterGroup;
+
+/** Compound filter group — recursive; can nest groups inside groups. */
+export interface FilterGroup {
+  logic: FilterLogic;
+  conditions: FilterNode[];
+}
+
+/** Type guard: is a FilterNode a group? */
+export function isFilterGroup(node: FilterNode): node is FilterGroup {
+  return "logic" in node && "conditions" in node;
 }
 
 /** Sort direction */

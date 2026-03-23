@@ -5,20 +5,18 @@
 
 import type { FilterOperator } from "./types.js";
 
-export type FieldType = "text" | "date" | "numeric" | "enum";
+export type BuiltInFieldType = "text" | "date" | "numeric" | "enum";
+export type FieldType = BuiltInFieldType | (string & {});
 
 export interface OperatorDefinition {
   value: FilterOperator;
-  /** Does this operator require a value input? */
   requiresValue: boolean;
-  /** Does this operator take multiple values? (between, in, nin) */
   isMultiValue: boolean;
 }
 
 const MULTI_VALUE_OPS = new Set<FilterOperator>(["between", "in", "nin"]);
 const NULL_CHECK_OPS = new Set<FilterOperator>(["isnull", "isnotnull"]);
 
-/** All text/string operators per TMF630 */
 const TEXT_OPERATORS: OperatorDefinition[] = [
   { value: "eq", requiresValue: true, isMultiValue: false },
   { value: "ne", requiresValue: true, isMultiValue: false },
@@ -40,7 +38,6 @@ const TEXT_OPERATORS: OperatorDefinition[] = [
   { value: "isnotnull", requiresValue: false, isMultiValue: false },
 ];
 
-/** Date/comparable operators (in/nin valid per TMF630 "Any type" rule) */
 const DATE_OPERATORS: OperatorDefinition[] = [
   { value: "eq", requiresValue: true, isMultiValue: false },
   { value: "ne", requiresValue: true, isMultiValue: false },
@@ -55,7 +52,6 @@ const DATE_OPERATORS: OperatorDefinition[] = [
   { value: "isnotnull", requiresValue: false, isMultiValue: false },
 ];
 
-/** Numeric operators (in/nin/isnull/isnotnull valid per TMF630 "Any type" rule) */
 const NUMERIC_OPERATORS: OperatorDefinition[] = [
   { value: "eq", requiresValue: true, isMultiValue: false },
   { value: "ne", requiresValue: true, isMultiValue: false },
@@ -70,7 +66,6 @@ const NUMERIC_OPERATORS: OperatorDefinition[] = [
   { value: "isnotnull", requiresValue: false, isMultiValue: false },
 ];
 
-/** Enum: eq, ne, in, nin + isnull/isnotnull (Any type) + comparable ops */
 const ENUM_OPERATORS: OperatorDefinition[] = [
   { value: "eq", requiresValue: true, isMultiValue: false },
   { value: "ne", requiresValue: true, isMultiValue: false },
@@ -85,17 +80,22 @@ const ENUM_OPERATORS: OperatorDefinition[] = [
   { value: "isnotnull", requiresValue: false, isMultiValue: false },
 ];
 
-const BY_FIELD_TYPE: Record<FieldType, OperatorDefinition[]> = {
+const BY_FIELD_TYPE: Record<string, OperatorDefinition[]> = {
   text: TEXT_OPERATORS,
   date: DATE_OPERATORS,
   numeric: NUMERIC_OPERATORS,
   enum: ENUM_OPERATORS,
 };
 
+/**
+ * Get operators for a field type. Supports built-in types and custom types
+ * registered via the `customTypes` parameter.
+ */
 export function getOperatorsForFieldType(
   fieldType: FieldType,
+  customTypes?: Record<string, OperatorDefinition[]>,
 ): OperatorDefinition[] {
-  return BY_FIELD_TYPE[fieldType];
+  return customTypes?.[fieldType] ?? BY_FIELD_TYPE[fieldType] ?? BY_FIELD_TYPE.text;
 }
 
 export function operatorsRequireNoValue(op: FilterOperator): boolean {
@@ -105,3 +105,10 @@ export function operatorsRequireNoValue(op: FilterOperator): boolean {
 export function isMultiValueOperator(op: FilterOperator): boolean {
   return MULTI_VALUE_OPS.has(op);
 }
+
+export {
+  TEXT_OPERATORS,
+  DATE_OPERATORS,
+  NUMERIC_OPERATORS,
+  ENUM_OPERATORS,
+};

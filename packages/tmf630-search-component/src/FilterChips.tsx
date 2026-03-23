@@ -2,8 +2,20 @@
 
 import * as React from "react";
 import type { FilterCondition, FilterOperator } from "@pia-team/pia-ui-tmf630-query-core";
-import { normalizeDateToYYYYMMDD } from "@pia-team/pia-ui-tmf630-query-core";
-import type { FilterableField, Labels } from "./types.js";
+import { normalizeDateTimeForDisplay } from "@pia-team/pia-ui-tmf630-query-core";
+import type {
+  FilterableField,
+  Labels,
+  FilterChipsClassNames,
+  FilterIcons,
+} from "./types.js";
+import { filterChipsDefaults } from "./defaults.js";
+import { slot } from "./utils.js";
+import { useFilterTheme } from "./FilterThemeContext.js";
+
+/* ------------------------------------------------------------------ */
+/*  Props                                                              */
+/* ------------------------------------------------------------------ */
 
 export interface FilterChipsProps {
   filters: FilterCondition[];
@@ -11,72 +23,132 @@ export interface FilterChipsProps {
   labels: Labels;
   onRemove: (index: number) => void;
   onClearAll: () => void;
+  classNames?: FilterChipsClassNames;
+  unstyled?: boolean;
+  icons?: FilterIcons;
+  renderChip?: (props: {
+    filter: FilterCondition;
+    index: number;
+    label: string;
+    onRemove: () => void;
+  }) => React.ReactNode;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
 function formatFilterValue(
   value: string | string[],
   isDateField?: boolean,
 ): string {
   if (Array.isArray(value)) {
-    const formatted = isDateField
-      ? value.map((v) => normalizeDateToYYYYMMDD(String(v)) || v).join(", ")
+    return isDateField
+      ? value.map((v) => normalizeDateTimeForDisplay(String(v)) || v).join(", ")
       : value.join(", ");
-    return formatted;
   }
   if (isDateField && value) {
-    return normalizeDateToYYYYMMDD(String(value)) || value;
+    return normalizeDateTimeForDisplay(String(value)) || value;
   }
   return String(value ?? "");
 }
 
-export function FilterChips({
-  filters,
-  fields,
-  labels,
-  onRemove,
-  onClearAll,
-}: FilterChipsProps) {
-  if (filters.length === 0) return null;
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium text-muted-foreground">
-        {labels.activeFilters}:
-      </span>
-      {filters.map((filter, index) => {
-        const fieldDef = fields.find((f) => f.name === filter.field);
-        const label = fieldDef?.label ?? filter.field;
-        const opLabel = labels.operators[filter.operator as FilterOperator] ?? filter.operator;
-        const isDateField = fieldDef?.type === "date";
-        const valueStr = formatFilterValue(filter.value, isDateField);
-        const chipLabel = valueStr
-          ? `${label} ${opLabel} "${valueStr}"`
-          : `${label} ${opLabel}`;
+export const FilterChips = React.forwardRef<HTMLDivElement, FilterChipsProps>(
+  function FilterChips(props, ref) {
+    const theme = useFilterTheme();
+    const {
+      filters,
+      fields,
+      labels: propLabels,
+      onRemove,
+      onClearAll,
+      classNames: propClassNames,
+      unstyled: propUnstyled,
+      icons: propIcons,
+      renderChip,
+    } = props;
 
-        return (
-          <span
-            key={`${filter.field}-${filter.operator}-${index}`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 pr-1 text-xs text-primary"
-          >
-            {chipLabel}
-            <button
-              type="button"
-              onClick={() => onRemove(index)}
-              aria-label={labels.removeFilter}
-              className="inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded p-0 text-primary/60 hover:text-destructive"
-            >
-              &times;
-            </button>
-          </span>
-        );
-      })}
-      <button
-        type="button"
-        onClick={onClearAll}
-        className="cursor-pointer text-xs text-muted-foreground hover:text-destructive focus:outline-none"
+    const unstyled = propUnstyled ?? theme.unstyled ?? false;
+    const cls = { ...theme.classNames?.chips, ...propClassNames };
+    const icons = { ...theme.icons, ...propIcons };
+    const labels = theme.labels
+      ? { ...theme.labels, ...propLabels } as Labels
+      : propLabels;
+
+    if (filters.length === 0) return null;
+
+    return (
+      <div
+        ref={ref}
+        className={slot(filterChipsDefaults.root, cls.root, unstyled)}
+        data-slot="filter-chips"
+        role="list"
+        aria-label={labels.activeFilters}
       >
-        {labels.clearAll}
-      </button>
-    </div>
-  );
-}
+        <span
+          className={slot(filterChipsDefaults.label, cls.label, unstyled)}
+          data-slot="chips-label"
+        >
+          {labels.activeFilters}:
+        </span>
+        {filters.map((filter, index) => {
+          const fieldDef = fields.find((f) => f.name === filter.field);
+          const fieldLabel = fieldDef?.label ?? filter.field;
+          const opLabel =
+            labels.operators[filter.operator as FilterOperator] ??
+            filter.operator;
+          const isDateField = fieldDef?.type === "date";
+          const valueStr = formatFilterValue(filter.value, isDateField);
+          const chipLabel = valueStr
+            ? `${fieldLabel} ${opLabel} "${valueStr}"`
+            : `${fieldLabel} ${opLabel}`;
+
+          if (renderChip) {
+            return (
+              <React.Fragment key={`${filter.field}-${filter.operator}-${index}`}>
+                {renderChip({
+                  filter,
+                  index,
+                  label: chipLabel,
+                  onRemove: () => onRemove(index),
+                })}
+              </React.Fragment>
+            );
+          }
+
+          return (
+            <span
+              key={`${filter.field}-${filter.operator}-${index}`}
+              className={slot(filterChipsDefaults.chip, cls.chip, unstyled)}
+              data-slot="chip"
+              role="listitem"
+            >
+              {chipLabel}
+              <button
+                type="button"
+                onClick={() => onRemove(index)}
+                aria-label={`${labels.removeFilter}: ${chipLabel}`}
+                className={slot(filterChipsDefaults.chipRemove, cls.chipRemove, unstyled)}
+                data-slot="chip-remove"
+              >
+                {icons.remove ?? <span aria-hidden>&times;</span>}
+              </button>
+            </span>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onClearAll}
+          className={slot(filterChipsDefaults.clearAll, cls.clearAll, unstyled)}
+          data-slot="chips-clear-all"
+        >
+          {labels.clearAll}
+        </button>
+      </div>
+    );
+  },
+);

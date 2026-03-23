@@ -1,36 +1,53 @@
 {
   "name": "@pia-team/pia-ui-tmf630-search",
-  "version": "0.1.0",
-  "description": "TMF630 QueryDSL Search UI — React components for rich filter panel",
+  "version": "0.4.0",
+  "description": "TMF630 QueryDSL Search UI — headless hook + React components for rich filter panel",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./variables.css": "./src/variables.css",
+    "./filter-components.css": "./src/filter-components.css"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "@radix-ui/react-select": "*"
+    "@radix-ui/react-select": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@radix-ui/react-select": {
+      "optional": true
+    }
   },
   "dependencies": {
-    "@pia-team/pia-ui-tmf630-query-core": "^0.1.0"
+    "@pia-team/pia-ui-tmf630-query-core": "^0.4.0"
   },
   "devDependencies": {
+    "tsup": "^8.0.0",
     "typescript": "^5.7.0",
     "@types/react": "^19.0.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/variables.css",
+    "src/filter-components.css"
   ],
-  "keywords": ["tmf630", "querydsl", "filter", "react", "search"],
+  "keywords": ["tmf630", "querydsl", "filter", "react", "search", "headless"],
   "license": "MIT"
 }
