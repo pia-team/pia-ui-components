@@ -412,7 +412,16 @@ npm run storybook
 # Opens at http://localhost:6006
 ```
 
+### Published site (GitHub Pages)
+
+After you enable Pages once (repo **Settings → Pages → Source: GitHub Actions**), each push to `main` deploys Storybook:
+
+**https://pia-team.github.io/pia-ui-components/**
+
+Workflow: [`.github/workflows/storybook-pages.yml`](.github/workflows/storybook-pages.yml).
+
 Available stories:
+- **Query core/Playground** — `serializeFilters` / `deserializeFilters` and compound JSON round-trip
 - **Components/FilterPanel** — Default, with initial filters, with chips, unstyled, custom classNames
 - **Components/FilterChips** — Default, empty, single filter
 - **Components/CompoundFilterPanel** — Interactive AND/OR builder, pre-populated groups

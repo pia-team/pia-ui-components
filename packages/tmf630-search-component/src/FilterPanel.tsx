@@ -16,6 +16,7 @@ import { slot } from "./utils.js";
 import { useFilterPanel } from "./useFilterPanel.js";
 import { useFilterTheme } from "./FilterThemeContext.js";
 import { useFocusTrap } from "./useFocusTrap.js";
+import { resolveLabels } from "./resolveLabels.js";
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -23,7 +24,7 @@ import { useFocusTrap } from "./useFocusTrap.js";
 
 export interface FilterPanelProps {
   fields: FilterableField[];
-  labels: Labels;
+  labels?: Partial<Labels>;
   onApply: (filters: FilterCondition[]) => void;
   initialFilters?: FilterCondition[];
   defaultFilter?: FilterCondition;
@@ -93,9 +94,7 @@ export const FilterPanel = React.forwardRef<HTMLDivElement, FilterPanelProps>(
     const cls = { ...theme.classNames?.panel, ...propClassNames };
     const rowCls = { ...theme.classNames?.row, ...propRowClassNames };
     const icons = { ...theme.icons, ...propIcons };
-    const labels = theme.labels
-      ? { ...theme.labels, ...propLabels } as Labels
-      : propLabels;
+    const labels = resolveLabels(theme.labels, propLabels);
 
     const hook = useFilterPanel({
       fields,

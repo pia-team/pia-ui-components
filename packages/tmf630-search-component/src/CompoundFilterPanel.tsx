@@ -28,6 +28,7 @@ import { filterPanelDefaults } from "./defaults.js";
 import { slot } from "./utils.js";
 import { useFilterTheme } from "./FilterThemeContext.js";
 import { useFocusTrap } from "./useFocusTrap.js";
+import { resolveLabels } from "./resolveLabels.js";
 
 /* ------------------------------------------------------------------ */
 /*  Compound Panel ClassNames                                          */
@@ -50,7 +51,7 @@ export interface CompoundFilterPanelProps {
   onChange: (group: FilterGroup) => void;
   onApply?: (group: FilterGroup) => void;
   maxDepth?: number;
-  labels?: Labels;
+  labels?: Partial<Labels>;
   classNames?: CompoundFilterPanelClassNames;
   rowClassNames?: FilterRowClassNames;
   unstyled?: boolean;
@@ -363,9 +364,7 @@ export const CompoundFilterPanel = React.forwardRef<
     ...propClassNames,
   };
   const icons: FilterIcons = { ...theme.icons, ...propIcons };
-  const labels = theme.labels
-    ? ({ ...theme.labels, ...propLabels } as Labels)
-    : propLabels;
+  const labels = resolveLabels(theme.labels, propLabels);
 
   const [isOpen, setIsOpen] = React.useState(false);
   const focusTrapRef = useFocusTrap<HTMLDivElement>(isOpen);
@@ -452,7 +451,7 @@ export const CompoundFilterPanel = React.forwardRef<
             depth={0}
             maxDepth={maxDepth}
             fields={fields}
-            labels={labels ?? ({} as Labels)}
+            labels={labels}
             cls={cls}
             rowCls={rowClassNames}
             unstyled={unstyled}

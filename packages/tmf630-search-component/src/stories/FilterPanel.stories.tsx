@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
 import { useState } from "react";
 import { FilterPanel } from "../FilterPanel.js";
 import { FilterChips } from "../FilterChips.js";
@@ -28,6 +29,9 @@ const meta: Meta<typeof FilterPanel> = {
     layout: "padded",
   },
   tags: ["autodocs"],
+  args: {
+    onApply: fn(),
+  },
 };
 
 export default meta;

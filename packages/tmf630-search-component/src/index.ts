@@ -47,6 +47,7 @@ export {
 /* -- i18n presets -------------------------------------------------- */
 export { labelsEn } from "./i18n/en.js";
 export { labelsTr } from "./i18n/tr.js";
+export { resolveLabels } from "./resolveLabels.js";
 
 /* -- Types --------------------------------------------------------- */
 export type {

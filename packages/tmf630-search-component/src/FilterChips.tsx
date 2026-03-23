@@ -12,6 +12,7 @@ import type {
 import { filterChipsDefaults } from "./defaults.js";
 import { slot } from "./utils.js";
 import { useFilterTheme } from "./FilterThemeContext.js";
+import { resolveLabels } from "./resolveLabels.js";
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -20,7 +21,7 @@ import { useFilterTheme } from "./FilterThemeContext.js";
 export interface FilterChipsProps {
   filters: FilterCondition[];
   fields: FilterableField[];
-  labels: Labels;
+  labels?: Partial<Labels>;
   onRemove: (index: number) => void;
   onClearAll: () => void;
   classNames?: FilterChipsClassNames;
@@ -75,9 +76,7 @@ export const FilterChips = React.forwardRef<HTMLDivElement, FilterChipsProps>(
     const unstyled = propUnstyled ?? theme.unstyled ?? false;
     const cls = { ...theme.classNames?.chips, ...propClassNames };
     const icons = { ...theme.icons, ...propIcons };
-    const labels = theme.labels
-      ? { ...theme.labels, ...propLabels } as Labels
-      : propLabels;
+    const labels = resolveLabels(theme.labels, propLabels);
 
     if (filters.length === 0) return null;
 
