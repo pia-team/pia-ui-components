@@ -1,6 +1,6 @@
 {
   "name": "@pia-team/pia-ui-tmf630-query-core",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "TMF630 QueryDSL core — framework-agnostic types, operators, serialization",
   "type": "module",
   "main": "./dist/index.cjs",
