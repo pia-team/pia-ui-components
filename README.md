@@ -293,70 +293,466 @@ function TransformationsPage() {
 }
 ```
 
-### Config File Format (search-config.json)
+### Creating a `search-config.json` — Complete Guide
+
+This section explains every property and option so you can build a config from scratch for any project.
+
+#### Minimal Example
+
+The simplest valid config — a single text field:
+
+```json
+{
+  "fields": {
+    "name": {}
+  }
+}
+```
+
+That's it. The system auto-derives:
+- `type` defaults to `"text"`
+- Operators default to the `text-search` preset (eq, ne, contains, containsi, ...)
+- Display name defaults to `"Name"` (camelCase → Title Case)
+
+#### Full Structure Reference
+
+```json
+{
+  "displayPattern": "dd/MM/yyyy HH:mm",
+
+  "fields": {
+    "fieldName": {
+      "type": "text",
+      "displayName": "My Field",
+      "operatorSet": "text-search",
+      "operators": ["eq", "ne", "contains"],
+      "nullable": false,
+      "displayFormat": "date",
+      "displayPattern": "yyyy-MM-dd",
+      "values": [
+        { "displayName": "Option A", "serverValue": "A" }
+      ],
+      "defaultOperator": "containsi",
+      "validation": {
+        "required": true,
+        "minLength": 2,
+        "maxLength": 255,
+        "min": 1,
+        "max": 9999,
+        "pattern": "^[A-Z].*",
+        "patternMessage": "Must start with uppercase"
+      }
+    }
+  },
+
+  "defaults": {
+    "defaultField": "fieldName",
+    "defaultOperator": "containsi"
+  },
+
+  "responseFields": ["fieldName", "otherField"]
+}
+```
+
+> Every property except `fields` is optional. Inside `fields`, every property except the key name is optional.
+
+#### Top-Level Properties
+
+| Property | Required | Description |
+|---|---|---|
+| `fields` | **Yes** | Map of field names to field configurations. Keys must match your backend DTO property names exactly. |
+| `displayPattern` | No | Global date/time display pattern for all temporal fields (e.g. `"dd/MM/yyyy HH:mm"`). Individual fields can override this with their own `displayPattern`. |
+| `defaults.defaultField` | No | Which field the search bar uses by default (e.g. typing "hello" searches `defaultField.defaultOperator=hello`). |
+| `defaults.defaultOperator` | No | Which operator the search bar uses by default (e.g. `"containsi"` for case-insensitive substring match). |
+| `responseFields` | No | Array of field names to include in the TMF630 `fields=` query parameter. Controls which columns the backend returns. Also used for CSV export headers. |
+
+#### Field Types
+
+The `type` property determines the input type rendered in the UI and which operators are available by default.
+
+| Type | Description | Default Preset | UI Input | Example Backend Type |
+|---|---|---|---|---|
+| `text` | Free-text string (default if omitted) | `text-search` | `<input type="text">` | `String` |
+| `numeric` | Numeric value | `numeric` | `<input type="number">` | `Integer`, `Long`, `BigDecimal` |
+| `enum` | Fixed set of values | `selection` | `<select>` dropdown | Java `enum` |
+| `email` | Email address (auto-validated) | `text-search` | `<input type="text">` | `String` |
+| `url` | URL (auto-validated) | `text-search` | `<input type="text">` | `String` |
+| `date` | Date only (no time) | `date-range` | `<input type="date">` | `LocalDate` |
+| `dateTime` | Date + time (no timezone) | `date-range` | `<input type="datetime-local">` | `LocalDateTime` |
+| `offsetDateTime` | Date + time + timezone offset | `date-range` | `<input type="datetime-local">` | `OffsetDateTime` |
+| `instant` | UTC timestamp | `date-range` | `<input type="datetime-local">` | `Instant` |
+
+> **Tip:** If your backend stores timestamps as `OffsetDateTime` (very common in Spring/JPA), use `"type": "offsetDateTime"`. If the backend stores date-only values (like `birthDate`), use `"type": "date"`.
+
+#### Field Properties
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `type` | string | `"text"` | Field type (see table above) |
+| `displayName` | string | auto from key | Human-readable label. Auto-generated from the field key via camelCase → Title Case (`"createdBy"` → `"Created By"`, `"transformationId"` → `"Transformation ID"`). |
+| `operatorSet` | string | auto from type | Named operator preset (see below). Overrides the type's default preset. |
+| `operators` | string[] | — | Explicit operator list. **Highest priority** — overrides both `operatorSet` and type defaults. |
+| `nullable` | boolean | `false` | If `true`, appends `isnull` and `isnotnull` operators to the available list. Use for fields that can be `null` in the database. |
+| `displayFormat` | `"date"` or `"datetime"` | auto from type | **Only for temporal types.** Controls whether the date picker shows time. `"date"` → date-only picker (`YYYY-MM-DD`), `"datetime"` → date+time picker. Defaults: `date` → `"date"`, `offsetDateTime`/`dateTime`/`instant` → `"datetime"`. |
+| `displayPattern` | string | inherits global | Display format pattern for temporal fields (e.g. `"dd/MM/yyyy"`, `"yyyy-MM-dd HH:mm:ss"`). Overrides the top-level `displayPattern` for this field. |
+| `values` | array | — | **Only for `type: "enum"`.** Static enum options. Each entry: `{ "displayName": "Label", "serverValue": "VALUE" }`. |
+| `defaultOperator` | string | — | Override the operator pre-selected when this field is chosen in the filter row. |
+| `validation` | object | — | Client-side validation rules (see below). |
+
+#### TMF630 Operator Reference
+
+All 22 TMF630 QueryDSL operators supported by the system:
+
+| Operator | Meaning | Value Type | Query Example |
+|---|---|---|---|
+| `eq` | Equals | single | `name.eq=Alice` |
+| `ne` | Not equals | single | `name.ne=Bob` |
+| `eqi` | Equals (case-insensitive) | single | `name.eqi=alice` |
+| `nei` | Not equals (case-insensitive) | single | `name.nei=bob` |
+| `gt` | Greater than | single | `age.gt=18` |
+| `gte` | Greater than or equal | single | `age.gte=18` |
+| `lt` | Less than | single | `age.lt=65` |
+| `lte` | Less than or equal | single | `age.lte=65` |
+| `between` | Value range (2 values) | **dual** | `age.between=18&age.between=65` |
+| `in` | In set (multi-value) | **multi** | `status.in=A&status.in=B` |
+| `nin` | Not in set (multi-value) | **multi** | `status.nin=X&status.nin=Y` |
+| `contains` | Contains substring | single | `name.contains=ali` |
+| `containsi` | Contains (case-insensitive) | single | `name.containsi=ALI` |
+| `startswith` | Starts with | single | `name.startswith=Al` |
+| `startswithi` | Starts with (case-insensitive) | single | `name.startswithi=al` |
+| `endswith` | Ends with | single | `name.endswith=ce` |
+| `endswithi` | Ends with (case-insensitive) | single | `name.endswithi=CE` |
+| `like` | SQL LIKE pattern | single | `name.like=A%` |
+| `likei` | SQL LIKE (case-insensitive) | single | `name.likei=a%` |
+| `regex` | Regular expression | single | `name.regex=^A.*` |
+| `regexi` | Regex (case-insensitive) | single | `name.regexi=^a.*` |
+| `isnull` | Is null (**no value needed**) | none | `name.isnull=true` |
+| `isnotnull` | Is not null (**no value needed**) | none | `name.isnotnull=true` |
+
+> **Backend notes:**
+> - `regex` / `regexi` require `opentmf.tmf630.attribute-filtering.regex.enabled=true` on the backend.
+> - `between`, `in`, `nin` are sent as **repeated query parameters** (e.g. `field.in=A&field.in=B`), not comma-separated.
+> - Unknown fields/operators are validated by the backend's `on-unknown-field` and `on-unknown-operator` settings.
+
+#### Operator Presets
+
+Instead of listing raw operator codes per field, use named presets via `operatorSet`:
+
+| Preset Name | Operators Included | Auto-Used By Types |
+|---|---|---|
+| `text-search` | eq, ne, contains, containsi, startswith, startswithi, endswith, endswithi, in, nin | `text`, `email`, `url` |
+| `text-exact` | eq, ne, eqi, nei, in, nin | *(manual only)* |
+| `selection` | eq, ne, in, nin | `enum` |
+| `date-range` | eq, ne, gt, gte, lt, lte, between | `date`, `dateTime`, `offsetDateTime`, `instant` |
+| `numeric` | eq, ne, gt, gte, lt, lte, between, in, nin | `numeric` |
+
+#### Operator Resolution Priority (3 Levels)
+
+The system resolves which operators a field gets using this priority:
+
+```
+1. "operators": ["eq", "ne", "in"]   ← HIGHEST: explicit list (full admin control)
+2. "operatorSet": "text-exact"        ← MIDDLE:  named preset
+3. auto-derived from "type"           ← LOWEST:  type-based default preset
+```
+
+`"nullable": true` **always** appends `isnull` / `isnotnull` to whichever level is active.
+
+**Examples:**
+
+```json
+// Level 3 — auto: type "text" → gets text-search preset automatically
+{ "type": "text" }
+// Result: eq, ne, contains, containsi, startswith, startswithi, endswith, endswithi, in, nin
+
+// Level 2 — preset override: force text-exact instead of text-search
+{ "type": "text", "operatorSet": "text-exact" }
+// Result: eq, ne, eqi, nei, in, nin
+
+// Level 1 — explicit override: only these 3 operators, nothing else
+{ "type": "text", "operators": ["eq", "ne", "contains"] }
+// Result: eq, ne, contains
+
+// Nullable adds isnull/isnotnull to any level
+{ "type": "text", "operatorSet": "text-exact", "nullable": true }
+// Result: eq, ne, eqi, nei, in, nin, isnull, isnotnull
+```
+
+#### UI Input per Operator
+
+The filter panel automatically renders the correct input widget based on the selected operator:
+
+| Operator | UI Rendered | Description |
+|---|---|---|
+| `between` | Two side-by-side inputs ("From" / "To") | `BetweenValueInput` — works for text, numeric, and date fields |
+| `in`, `nin` on **enum** fields | Checkbox dropdown (multi-select) | `MultiSelectInput` — shows all enum options as checkboxes |
+| `in`, `nin` on **text/numeric/date** fields | Tag/chip input | `TagValueInput` — type a value, press Enter to add as tag |
+| `isnull`, `isnotnull` | No input (value hidden) | Value is automatically set to `"true"` |
+| All other operators | Single input | Text input, number input, date picker, or enum dropdown depending on field type |
+
+#### Validation Rules
+
+Add client-side validation via the `validation` property:
+
+```json
+{
+  "validation": {
+    "required": true,
+    "minLength": 2,
+    "maxLength": 255,
+    "min": 1,
+    "max": 9999,
+    "pattern": "^[A-Z].*",
+    "patternMessage": "Must start with an uppercase letter"
+  }
+}
+```
+
+| Rule | Applies To | Description |
+|---|---|---|
+| `required` | all | Value cannot be empty |
+| `minLength` | text, email, url | Minimum character count |
+| `maxLength` | text, email, url | Maximum character count |
+| `min` | numeric | Minimum numeric value |
+| `max` | numeric | Maximum numeric value |
+| `pattern` | all | Regex pattern the value must match |
+| `patternMessage` | all | Custom error message when pattern fails |
+
+> `email` and `url` types have **built-in validation** (email format, URL format) that runs automatically — no need to add patterns for those.
+
+#### Step-by-Step: Creating a Config for a New Project
+
+Suppose you have a backend API for "Products" with these DTO fields:
+
+| DTO Field | Java Type | Nullable? | Notes |
+|---|---|---|---|
+| `productId` | `String` | No | Primary identifier |
+| `productName` | `String` | No | Searchable name |
+| `category` | `CategoryEnum` | No | ELECTRONICS, CLOTHING, FOOD |
+| `price` | `BigDecimal` | No | Product price |
+| `createdAt` | `OffsetDateTime` | No | Creation timestamp |
+| `updatedAt` | `OffsetDateTime` | Yes | Last update (can be null) |
+| `supplierEmail` | `String` | Yes | Supplier contact email |
+
+**Step 1: Define each field with its type**
+
+```json
+{
+  "fields": {
+    "productId": {},
+    "productName": {},
+    "category": { "type": "enum" },
+    "price": { "type": "numeric" },
+    "createdAt": { "type": "offsetDateTime" },
+    "updatedAt": { "type": "offsetDateTime" },
+    "supplierEmail": { "type": "email" }
+  }
+}
+```
+
+**Step 2: Add enum values for `category`**
+
+```json
+"category": {
+  "type": "enum",
+  "values": [
+    { "displayName": "Electronics", "serverValue": "ELECTRONICS" },
+    { "displayName": "Clothing", "serverValue": "CLOTHING" },
+    { "displayName": "Food", "serverValue": "FOOD" }
+  ]
+}
+```
+
+**Step 3: Mark nullable fields and customize display**
+
+```json
+"updatedAt": {
+  "type": "offsetDateTime",
+  "nullable": true,
+  "displayFormat": "datetime"
+},
+"supplierEmail": {
+  "type": "email",
+  "nullable": true,
+  "displayName": "Supplier Email"
+}
+```
+
+**Step 4: Choose operator presets (or keep defaults)**
+
+```json
+"productId": {
+  "operatorSet": "text-exact"
+},
+"productName": {
+  "operatorSet": "text-search"
+},
+"price": {
+  "operatorSet": "numeric",
+  "validation": { "min": 0 }
+}
+```
+
+> If you don't set `operatorSet`, the system auto-assigns based on `type` (see Operator Presets table).
+
+**Step 5: Set defaults and response fields**
+
+```json
+"defaults": {
+  "defaultField": "productName",
+  "defaultOperator": "containsi"
+},
+"responseFields": [
+  "productId", "productName", "category",
+  "price", "createdAt", "updatedAt"
+]
+```
+
+**Step 6: Add global display pattern**
+
+```json
+"displayPattern": "dd/MM/yyyy HH:mm"
+```
+
+**Complete result:**
 
 ```json
 {
   "displayPattern": "dd/MM/yyyy HH:mm",
   "fields": {
-    "name": {
+    "productId": {
+      "operatorSet": "text-exact",
+      "validation": { "maxLength": 100 }
+    },
+    "productName": {
       "operatorSet": "text-search",
       "validation": { "maxLength": 255 }
     },
-    "engine": {
+    "category": {
       "type": "enum",
-      "operatorSet": "selection",
-      "values": [{ "displayName": "JSLT", "serverValue": "JSLT" }]
+      "values": [
+        { "displayName": "Electronics", "serverValue": "ELECTRONICS" },
+        { "displayName": "Clothing", "serverValue": "CLOTHING" },
+        { "displayName": "Food", "serverValue": "FOOD" }
+      ]
     },
-    "createdOn": {
+    "price": {
+      "type": "numeric",
+      "validation": { "min": 0 }
+    },
+    "createdAt": {
       "type": "offsetDateTime",
-      "operatorSet": "date-range",
       "displayFormat": "date"
     },
-    "modifiedOn": {
+    "updatedAt": {
       "type": "offsetDateTime",
-      "operatorSet": "date-range",
-      "displayFormat": "date",
+      "displayFormat": "datetime",
       "nullable": true
     },
-    "createdBy": {
+    "supplierEmail": {
       "type": "email",
-      "operators": ["eq", "ne", "contains", "containsi", "startswith", "startswithi", "in", "nin"]
+      "displayName": "Supplier Email",
+      "nullable": true
     }
   },
   "defaults": {
-    "defaultField": "name",
+    "defaultField": "productName",
     "defaultOperator": "containsi"
   },
-  "responseFields": ["name", "engine", "createdOn", "modifiedOn", "createdBy"]
+  "responseFields": [
+    "productId",
+    "productName",
+    "category",
+    "price",
+    "createdAt",
+    "updatedAt"
+  ]
 }
 ```
 
-### Operator Preset System
+This config automatically gives you:
+- `productId` with exact match operators (eq, ne, eqi, nei, in, nin)
+- `productName` with full text search (contains, startswith, endswith, etc.)
+- `category` as a dropdown with 3 options
+- `price` with numeric comparisons (gt, lt, between, etc.) and minimum 0 validation
+- `createdAt` as date-only picker
+- `updatedAt` as date+time picker with isnull/isnotnull (nullable)
+- `supplierEmail` with email validation and isnull/isnotnull (nullable)
+- Search bar types into `productName` with case-insensitive contains
 
-Instead of listing TMF630 operator codes per field, use named presets:
+#### Advanced: Explicit Operator List
+
+For full control, bypass presets entirely with `operators`:
+
+```json
+"supplierEmail": {
+  "type": "email",
+  "nullable": true,
+  "operators": ["eq", "ne", "contains", "containsi", "startswith", "startswithi", "in", "nin"]
+}
+```
+
+> When `operators` is set, `operatorSet` and type defaults are **completely ignored**. `nullable: true` still appends `isnull`/`isnotnull`.
+
+#### Advanced: Multi-Context Config
+
+For applications that need different search configs for different pages/entities:
+
+```json
+{
+  "version": "1.0",
+  "contexts": {
+    "products": {
+      "fields": { "productName": {}, "price": { "type": "numeric" } },
+      "defaults": { "defaultField": "productName" }
+    },
+    "orders": {
+      "fields": { "orderId": {}, "status": { "type": "enum", "values": [...] } },
+      "defaults": { "defaultField": "orderId" }
+    }
+  }
+}
+```
+
+Access a specific context programmatically:
 
 ```tsx
-import { OPERATOR_PRESETS } from "@pia-team/pia-ui-tmf630-search";
+const config = parseSearchConfig(rawJson);
+const productsCtx = getContext(config, "products");
+const ordersCtx = getContext(config, "orders");
 ```
 
-| Preset | Operators | Auto-used by |
+> If you don't use `contexts`, the entire config is treated as a single `"default"` context.
+
+#### Serving the Config
+
+The config file can be served in multiple ways — **no code changes needed**, just deploy the JSON:
+
+| Environment | How to Serve | Where it Lives |
 |---|---|---|
-| `text-search` | eq, ne, contains, containsi, startswith, startswithi, endswith, endswithi, in, nin | `text`, `email`, `url` |
-| `text-exact` | eq, ne, eqi, nei, in, nin | — |
-| `selection` | eq, ne, in, nin | `enum` |
-| `date-range` | eq, ne, gt, gte, lt, lte, between | `date`, `dateTime`, `offsetDateTime`, `instant` |
-| `numeric` | eq, ne, gt, gte, lt, lte, between, in, nin | `numeric` |
+| Local dev (`npm run dev`) | File in project root | `./search-config.json` |
+| Docker Compose | Volume mount into container | `./transformation-ui/search-config.json:/app/search-config.json:ro` |
+| Kubernetes | ConfigMap + volume mount | `envjs-configmap.yaml` → mounted at `/app/search-config.json` |
+| API endpoint | Next.js API route reads the file | `GET /api/search-config` |
 
-### Override Priority (3 levels)
+The `SearchConfigProvider` fetches from the URL you provide:
 
-```
-1. "operators": ["eq", "ne", "in"]   ← highest: explicit list (advanced admin)
-2. "operatorSet": "text-exact"        ← named preset
-3. auto-derived from "type"           ← lowest: type-based default
+```tsx
+<SearchConfigProvider url="/api/search-config">
 ```
 
-`"nullable": true` always appends `isnull` / `isnotnull` to whichever level is active.
+#### Quick Checklist for New Projects
+
+- [ ] List all filterable fields from your backend DTO
+- [ ] Set `type` for each field (`text`, `numeric`, `enum`, `date`, `offsetDateTime`, etc.)
+- [ ] Add `values` array for any `enum` fields
+- [ ] Set `nullable: true` for fields that can be `null` in the database
+- [ ] Choose `displayFormat` for date fields: `"date"` (date-only) or `"datetime"` (date+time)
+- [ ] Optionally set `operatorSet` or `operators` to restrict available operators
+- [ ] Add `validation` rules for fields that need client-side checks
+- [ ] Set `defaults.defaultField` and `defaults.defaultOperator` for the search bar
+- [ ] List `responseFields` to control which columns the backend returns
+- [ ] Place the JSON file and configure your serving method (volume mount, ConfigMap, API route)
 
 ### Programmatic Config Parsing
 
