@@ -33,6 +33,18 @@ function resolveDefaultRow(
   return df;
 }
 
+function filterOperators(
+  fieldDef: FilterableField | undefined,
+  fieldType: string,
+  customFieldTypes?: Record<string, OperatorDefinition[]>,
+): OperatorDefinition[] {
+  const all = getOperatorsForFieldType(fieldType, customFieldTypes);
+  if (fieldDef?.operators) {
+    return all.filter((op) => fieldDef.operators!.includes(op.value));
+  }
+  return all;
+}
+
 function normalizeFilter(
   f: FilterCondition,
   fields: FilterableField[],
@@ -43,7 +55,7 @@ function normalizeFilter(
     f.field && fields.some((x) => x.name === f.field) ? f.field : fallback.field;
   const fieldDef = fields.find((x) => x.name === validField);
   const fieldType = fieldDef?.type ?? "text";
-  const ops = getOperatorsForFieldType(fieldType, customFieldTypes);
+  const ops = filterOperators(fieldDef, fieldType, customFieldTypes);
   const validOperator = ops.some((o) => o.value === f.operator)
     ? f.operator
     : ops.some((o) => o.value === fallback.operator)
@@ -199,7 +211,7 @@ export function useFilterPanel(options: UseFilterPanelOptions): UseFilterPanelRe
     (fieldName: string): OperatorDefinition[] => {
       const fieldDef = fields.find((f) => f.name === fieldName);
       const fieldType = fieldDef?.type ?? "text";
-      return getOperatorsForFieldType(fieldType, customFieldTypes);
+      return filterOperators(fieldDef, fieldType, customFieldTypes);
     },
     [fields, customFieldTypes],
   );

@@ -20,6 +20,10 @@ import { filterRowDefaults } from "./defaults.js";
 import { slot } from "./utils.js";
 import { DefaultSelect } from "./DefaultSelect.js";
 import { useFilterTheme } from "./FilterThemeContext.js";
+import { BetweenValueInput } from "./BetweenValueInput.js";
+import { TagValueInput } from "./TagValueInput.js";
+import { MultiSelectInput } from "./MultiSelectInput.js";
+import { DefaultValueInput } from "./DefaultValueInput.js";
 
 /* ------------------------------------------------------------------ */
 /*  Slots                                                              */
@@ -58,6 +62,9 @@ export interface FilterRowProps {
     type: FieldType;
     multiValue?: boolean;
     enumOptions?: { value: string; label: string }[];
+    displayFormat?: "date" | "datetime";
+    /** Set to 0 (from) or 1 (to) when rendering inside a between input */
+    betweenIndex?: 0 | 1;
   }) => React.ReactNode;
 }
 
@@ -97,8 +104,12 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
     const cls = { ...theme.classNames?.row, ...propClassNames };
     const icons = { ...theme.icons, ...propIcons };
 
-    const fieldType = getFieldType(filter.field, fields);
-    const operators = getOperatorsForFieldType(fieldType, customFieldTypes);
+    const fieldDef = fields.find((f) => f.name === filter.field);
+    const fieldType = fieldDef?.type ?? getFieldType(filter.field, fields);
+    const allOperators = getOperatorsForFieldType(fieldType, customFieldTypes);
+    const operators = fieldDef?.operators
+      ? allOperators.filter((op) => fieldDef.operators!.includes(op.value))
+      : allOperators;
     const currentOperator = operators.find((op) => op.value === filter.operator);
     const requiresValue = currentOperator?.requiresValue ?? true;
     const isDateSingleValue =
@@ -114,32 +125,45 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
     const handleFieldChange = (fieldName: string) => {
       const field = fields.find((f) => f.name === fieldName);
       const newType = field?.type ?? "text";
-      const newOperators = getOperatorsForFieldType(newType, customFieldTypes);
+      const allNewOperators = getOperatorsForFieldType(newType, customFieldTypes);
+      const newOperators = field?.operators
+        ? allNewOperators.filter((op) => field.operators!.includes(op.value))
+        : allNewOperators;
       const defaultOp = newOperators[0];
+      const typeChanged = newType !== fieldType;
       onUpdate(index, {
         field: fieldName,
         operator: defaultOp?.value ?? "eq",
-        value: defaultOp?.requiresValue === false ? "" : displayValue,
+        value: defaultOp?.requiresValue === false || typeChanged ? "" : displayValue,
       });
     };
 
+    const isBetween = filter.operator === "between";
+    const isInNin = filter.operator === "in" || filter.operator === "nin";
+
     const handleOperatorChange = (operator: string) => {
       const op = operators.find((o) => o.value === operator);
+      const newIsBetween = operator === "between";
+      const newIsInNin = operator === "in" || operator === "nin";
+      let newValue: string | string[] = "";
+      if (op?.requiresValue !== false) {
+        if (newIsBetween) {
+          newValue = ["", ""];
+        } else if (newIsInNin) {
+          newValue = [];
+        } else {
+          newValue = "";
+        }
+      }
       onUpdate(index, {
         ...filter,
         operator: operator as FilterCondition["operator"],
-        value: op?.requiresValue === false ? "" : displayValue,
+        value: newValue,
       });
     };
 
     const handleValueChange = (value: string) => {
-      const op = operators.find((o) => o.value === filter.operator);
-      if (op?.isMultiValue === true) {
-        onUpdate(index, {
-          ...filter,
-          value: value.split(",").map((s) => s.trim()).filter(Boolean),
-        });
-      } else if (isDateSingleValue && value) {
+      if (isDateSingleValue && value) {
         onUpdate(index, {
           ...filter,
           value: normalizeDateTimeForDisplay(value) || value,
@@ -149,15 +173,15 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
       }
     };
 
-    const valuePlaceholder = currentOperator?.isMultiValue
-      ? fieldType === "date"
-        ? "YYYY-MM-DD HH:mm, YYYY-MM-DD HH:mm"
-        : "value1, value2"
-      : fieldType === "date"
-        ? "YYYY-MM-DD HH:mm"
-        : "";
+    const handleArrayValueChange = (value: string[]) => {
+      onUpdate(index, { ...filter, value });
+    };
 
     const currentField = fields.find((f) => f.name === filter.field);
+    const isDateOnly = currentField?.displayFormat === "date";
+    const datePlaceholder = isDateOnly ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm";
+
+    const valuePlaceholder = fieldType === "date" ? datePlaceholder : "";
     const displayFieldValue =
       filter.field && currentField ? filter.field : undefined;
     const displayOperatorValue =
@@ -178,16 +202,69 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
 
     const resolvedValueClass = slot(filterRowDefaults.valueInput, cls.valueInput, unstyled);
 
+    const arrayValue: string[] = Array.isArray(filter.value)
+      ? filter.value
+      : filter.value
+        ? [filter.value]
+        : [];
+
     const valueInputElement = (() => {
       if (!requiresValue) return null;
 
+      /* ---- between: dual inputs ---- */
+      if (isBetween) {
+        const betweenValue: string[] = arrayValue.length >= 2
+          ? [arrayValue[0]!, arrayValue[1]!]
+          : [arrayValue[0] ?? "", ""];
+        return (
+          <BetweenValueInput
+            value={betweenValue}
+            onChange={handleArrayValueChange}
+            fieldType={fieldType}
+            field={currentField}
+            className={cls.valueInput}
+            unstyled={unstyled}
+            renderSingleInput={renderValueInput}
+          />
+        );
+      }
+
+      /* ---- in/nin + enum: multi-select checkbox dropdown ---- */
+      if (isInNin && fieldType === "enum" && currentField?.enumOptions?.length) {
+        return (
+          <MultiSelectInput
+            values={arrayValue}
+            options={currentField.enumOptions}
+            onChange={handleArrayValueChange}
+            placeholder="Select..."
+            className={resolvedValueClass}
+            unstyled={unstyled}
+          />
+        );
+      }
+
+      /* ---- in/nin + text/numeric/date: tag input ---- */
+      if (isInNin) {
+        return (
+          <TagValueInput
+            values={arrayValue}
+            onChange={handleArrayValueChange}
+            placeholder={fieldType === "date" ? datePlaceholder : "Type and press Enter"}
+            className={cls.valueInput}
+            unstyled={unstyled}
+            inputType={fieldType === "numeric" ? "number" : "text"}
+          />
+        );
+      }
+
+      /* ---- single-value: existing rendering ---- */
       const slotProps: ValueInputSlotProps = {
         value: displayValue,
         onChange: handleValueChange,
         placeholder: valuePlaceholder,
         className: resolvedValueClass,
         type: fieldType,
-        multiValue: currentOperator?.isMultiValue,
+        multiValue: false,
         enumOptions: currentField?.enumOptions,
       };
 
@@ -200,39 +277,22 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
           placeholder: valuePlaceholder,
           className: resolvedValueClass,
           type: fieldType,
-          multiValue: currentOperator?.isMultiValue,
+          multiValue: false,
           enumOptions: currentField?.enumOptions,
+          displayFormat: currentField?.displayFormat,
         });
       }
 
-      if (fieldType === "enum" && currentField?.enumOptions?.length) {
-        return (
-          <DefaultSelect
-            value={displayValue}
-            options={currentField.enumOptions}
-            onChange={handleValueChange}
-            placeholder="Select..."
-            displayLabel={
-              currentField.enumOptions.find((o) => o.value === displayValue)?.label
-            }
-            triggerClassName={resolvedValueClass}
-            contentClassName={slot(filterRowDefaults.fieldContent, cls.fieldContent, unstyled)}
-            itemClassName={slot(filterRowDefaults.fieldItem, cls.fieldItem, unstyled)}
-            data-slot="value-input"
-            aria-label="Filter value"
-          />
-        );
-      }
-
       return (
-        <input
-          type="text"
+        <DefaultValueInput
           value={displayValue}
-          onChange={(e) => handleValueChange(e.target.value)}
+          onChange={handleValueChange}
           placeholder={valuePlaceholder}
-          className={resolvedValueClass}
-          data-slot="value-input"
-          aria-label="Filter value"
+          className={cls.valueInput}
+          unstyled={unstyled}
+          type={fieldType}
+          enumOptions={currentField?.enumOptions}
+          displayFormat={currentField?.displayFormat}
         />
       );
     })();

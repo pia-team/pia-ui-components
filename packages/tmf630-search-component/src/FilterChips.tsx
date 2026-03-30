@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import type { FilterCondition, FilterOperator } from "@pia-team/pia-ui-tmf630-query-core";
-import { normalizeDateTimeForDisplay } from "@pia-team/pia-ui-tmf630-query-core";
+import {
+  formatDateForDisplay,
+  normalizeDateTimeForDisplay,
+} from "@pia-team/pia-ui-tmf630-query-core";
 import type {
   FilterableField,
   Labels,
@@ -39,19 +42,35 @@ export interface FilterChipsProps {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+function formatSingleFilterValue(raw: string, field?: FilterableField): string {
+  if (field?.type === "enum" && field.enumOptions?.length) {
+    const opt = field.enumOptions.find((o) => o.value === raw);
+    return opt?.label ?? raw;
+  }
+
+  const isDateLike =
+    field?.type === "date" ||
+    field?.displayFormat === "date" ||
+    field?.displayFormat === "datetime";
+
+  if (isDateLike && raw) {
+    if (field?.displayPattern) {
+      return formatDateForDisplay(String(raw), field.displayPattern);
+    }
+    return normalizeDateTimeForDisplay(String(raw)) || raw;
+  }
+
+  return String(raw ?? "");
+}
+
 function formatFilterValue(
   value: string | string[],
-  isDateField?: boolean,
+  field?: FilterableField,
 ): string {
   if (Array.isArray(value)) {
-    return isDateField
-      ? value.map((v) => normalizeDateTimeForDisplay(String(v)) || v).join(", ")
-      : value.join(", ");
+    return value.map((v) => formatSingleFilterValue(String(v), field)).join(", ");
   }
-  if (isDateField && value) {
-    return normalizeDateTimeForDisplay(String(value)) || value;
-  }
-  return String(value ?? "");
+  return formatSingleFilterValue(String(value ?? ""), field);
 }
 
 /* ------------------------------------------------------------------ */
@@ -100,8 +119,7 @@ export const FilterChips = React.forwardRef<HTMLDivElement, FilterChipsProps>(
           const opLabel =
             labels.operators[filter.operator as FilterOperator] ??
             filter.operator;
-          const isDateField = fieldDef?.type === "date";
-          const valueStr = formatFilterValue(filter.value, isDateField);
+          const valueStr = formatFilterValue(filter.value, fieldDef);
           const chipLabel = valueStr
             ? `${fieldLabel} ${opLabel} "${valueStr}"`
             : `${fieldLabel} ${opLabel}`;

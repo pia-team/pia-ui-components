@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import {
   type FilterCondition,
   type FilterGroup,
+  type FieldConfig,
   deserializeCompound,
   deserializeFilters,
   serializeCompound,
@@ -21,6 +22,14 @@ const SAMPLE_PARAMS = `{
   "status.eq": "active",
   "amount.gte": "100"
 }`;
+
+const SAMPLE_FIELD_CONFIGS: FieldConfig[] = [
+  { name: "name", type: "text", displayName: "Name", displayFormat: null, displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "status", type: "text", displayName: "Status", displayFormat: null, displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "amount", type: "numeric", displayName: "Amount", displayFormat: null, displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "createdDate", type: "offsetDateTime", displayName: "Created Date", displayFormat: "date", displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "createdOn", type: "offsetDateTime", displayName: "Created On", displayFormat: "date", displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+];
 
 const SAMPLE_COMPOUND = `{
   "logic": "and",
@@ -91,7 +100,7 @@ function FlatPlayground() {
       const parsed = JSON.parse(filtersText) as unknown;
       if (!Array.isArray(parsed)) throw new Error("Expected FilterCondition[] (JSON array)");
       const params = serializeFilters(parsed as FilterCondition[], {
-        dateFields: ["createdDate", "createdOn"],
+        fieldConfigs: SAMPLE_FIELD_CONFIGS,
       });
       setSerializedOut(JSON.stringify(params, null, 2));
     } catch (e) {
@@ -118,7 +127,9 @@ function FlatPlayground() {
     try {
       const parsed = JSON.parse(filtersText) as unknown;
       if (!Array.isArray(parsed)) throw new Error("Expected FilterCondition[] (JSON array)");
-      const params = serializeFilters(parsed as FilterCondition[]);
+      const params = serializeFilters(parsed as FilterCondition[], {
+        fieldConfigs: SAMPLE_FIELD_CONFIGS,
+      });
       const back = deserializeFilters(params as Record<string, string | string[]>);
       setRoundTripOut(JSON.stringify(back, null, 2));
     } catch (e) {
@@ -131,8 +142,7 @@ function FlatPlayground() {
       <p style={{ margin: 0, color: "#64748b", maxWidth: "52rem" }}>
         Flat TMF630 filters: <code>serializeFilters</code> → query param record,{" "}
         <code>deserializeFilters</code> → array. Serialize uses{" "}
-        <code>dateFields: [&quot;createdDate&quot;, &quot;createdOn&quot;]</code> as a demo for ISO
-        normalization.
+        <code>fieldConfigs</code> with typed FieldConfig entries for type-aware date/enum formatting.
       </p>
 
       {error && <div style={err}>{error}</div>}

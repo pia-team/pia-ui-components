@@ -18,6 +18,9 @@ export { setClassMerger } from "./utils.js";
 /* -- Theme --------------------------------------------------------- */
 export { FilterThemeProvider, useFilterTheme } from "./FilterThemeContext.js";
 
+/* -- Search Config Provider ---------------------------------------- */
+export { SearchConfigProvider, useSearchConfig, useSearchFields } from "./SearchConfigContext.js";
+
 /* -- Styled components --------------------------------------------- */
 export { FilterPanel } from "./FilterPanel.js";
 export type { FilterPanelProps } from "./FilterPanel.js";
@@ -30,6 +33,21 @@ export type { FilterChipsProps } from "./FilterChips.js";
 
 export { DefaultSelect } from "./DefaultSelect.js";
 export type { DefaultSelectProps } from "./DefaultSelect.js";
+
+export { BetweenValueInput } from "./BetweenValueInput.js";
+export type { BetweenValueInputProps } from "./BetweenValueInput.js";
+
+export { TagValueInput } from "./TagValueInput.js";
+export type { TagValueInputProps } from "./TagValueInput.js";
+
+export { MultiSelectInput } from "./MultiSelectInput.js";
+export type { MultiSelectInputProps } from "./MultiSelectInput.js";
+
+export { DateInput } from "./DateInput.js";
+export type { DateInputProps } from "./DateInput.js";
+
+export { DefaultValueInput } from "./DefaultValueInput.js";
+export type { DefaultValueInputProps } from "./DefaultValueInput.js";
 
 export { CompoundFilterPanel } from "./CompoundFilterPanel.js";
 export type {
@@ -93,6 +111,36 @@ export type {
   FilterLogic,
   FilterNode,
   FilterGroup,
+} from "@pia-team/pia-ui-tmf630-query-core";
+
+export type {
+  FieldConfig,
+  FieldConfigType,
+  SearchConfig,
+  SearchContextConfig,
+  SearchableField,
+  EnumValue,
+  FieldValidation,
+  DateDisplayFormat,
+  RawFieldConfigValue,
+  RawFieldsMap,
+  RawSearchContextConfig,
+  RawSearchConfig,
+} from "@pia-team/pia-ui-tmf630-query-core";
+
+export {
+  parseSearchConfig,
+  getContext,
+  configToFilterableFields,
+  buildSerializeOptions,
+  buildValidator,
+  serializeResponseFields,
+  formatDateForDisplay,
+  formatDateValue,
+  serializeToJsonPathFilter,
+  deserializeJsonPathFilter,
+  OPERATOR_PRESETS,
+  createSearchFilter,
 } from "@pia-team/pia-ui-tmf630-query-core";
 
 /* -- V2: Compound filter helpers ----------------------------------- */

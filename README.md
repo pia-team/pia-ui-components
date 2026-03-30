@@ -251,6 +251,141 @@ const page: PaginatedResult<Transformation> = parseTMF630Headers(
 // page.isLastPage   → true if HTTP 200, false if HTTP 206
 ```
 
+## Config-Driven Search (`SearchConfigProvider`)
+
+For applications that want to **externalize filter configuration** (e.g., via a JSON file or API), the library provides a complete config-driven system. Operators, field types, validation, and enum values are all determined by the config — no hardcoded operator lists needed.
+
+### Setup
+
+```tsx
+import { SearchConfigProvider, useSearchConfig, useSearchFields } from "@pia-team/pia-ui-tmf630-search";
+
+function App() {
+  return (
+    <SearchConfigProvider url="/api/search-config">
+      <TransformationsPage />
+    </SearchConfigProvider>
+  );
+}
+```
+
+### Using Config Fields
+
+```tsx
+import { useSearchConfig, useSearchFields } from "@pia-team/pia-ui-tmf630-search";
+
+function TransformationsPage() {
+  const searchCtx = useSearchConfig();       // raw context config (fields, defaults, responseFields)
+  const configFields = useSearchFields();     // UI-ready field descriptors with resolved operators
+
+  return (
+    <FilterPanel
+      fields={configFields}
+      labels={labels}
+      defaultFilter={{
+        field: searchCtx?.defaults.defaultField ?? "name",
+        operator: searchCtx?.defaults.defaultOperator ?? "containsi",
+        value: "",
+      }}
+      onApply={handleApply}
+    />
+  );
+}
+```
+
+### Config File Format (search-config.json)
+
+```json
+{
+  "displayPattern": "dd/MM/yyyy HH:mm",
+  "fields": {
+    "name": {
+      "operatorSet": "text-search",
+      "validation": { "maxLength": 255 }
+    },
+    "engine": {
+      "type": "enum",
+      "operatorSet": "selection",
+      "values": [{ "displayName": "JSLT", "serverValue": "JSLT" }]
+    },
+    "createdOn": {
+      "type": "offsetDateTime",
+      "operatorSet": "date-range",
+      "displayFormat": "date"
+    },
+    "modifiedOn": {
+      "type": "offsetDateTime",
+      "operatorSet": "date-range",
+      "displayFormat": "date",
+      "nullable": true
+    },
+    "createdBy": {
+      "type": "email",
+      "operators": ["eq", "ne", "contains", "containsi", "startswith", "startswithi", "in", "nin"]
+    }
+  },
+  "defaults": {
+    "defaultField": "name",
+    "defaultOperator": "containsi"
+  },
+  "responseFields": ["name", "engine", "createdOn", "modifiedOn", "createdBy"]
+}
+```
+
+### Operator Preset System
+
+Instead of listing TMF630 operator codes per field, use named presets:
+
+```tsx
+import { OPERATOR_PRESETS } from "@pia-team/pia-ui-tmf630-search";
+```
+
+| Preset | Operators | Auto-used by |
+|---|---|---|
+| `text-search` | eq, ne, contains, containsi, startswith, startswithi, endswith, endswithi, in, nin | `text`, `email`, `url` |
+| `text-exact` | eq, ne, eqi, nei, in, nin | — |
+| `selection` | eq, ne, in, nin | `enum` |
+| `date-range` | eq, ne, gt, gte, lt, lte, between | `date`, `dateTime`, `offsetDateTime`, `instant` |
+| `numeric` | eq, ne, gt, gte, lt, lte, between, in, nin | `numeric` |
+
+### Override Priority (3 levels)
+
+```
+1. "operators": ["eq", "ne", "in"]   ← highest: explicit list (advanced admin)
+2. "operatorSet": "text-exact"        ← named preset
+3. auto-derived from "type"           ← lowest: type-based default
+```
+
+`"nullable": true` always appends `isnull` / `isnotnull` to whichever level is active.
+
+### Programmatic Config Parsing
+
+```tsx
+import {
+  parseSearchConfig,
+  getContext,
+  configToFilterableFields,
+  buildSerializeOptions,
+  serializeResponseFields,
+} from "@pia-team/pia-ui-tmf630-search";
+
+// Parse and validate raw JSON
+const config = parseSearchConfig(rawJson);
+
+// Get a specific context (defaults to "default")
+const ctx = getContext(config);
+
+// Convert to UI field descriptors
+const fields = configToFilterableFields(ctx, i18nMap);
+
+// Build serialization options for serializeFilters()
+const opts = buildSerializeOptions(ctx);
+const params = serializeFilters(filters, opts);
+
+// Build TMF630 fields= query parameter
+const fieldsParam = serializeResponseFields(ctx); // "name,engine,createdOn,..."
+```
+
 ## Enum Fields
 
 Enum fields with `enumOptions` automatically render a dropdown select:
@@ -270,6 +405,84 @@ const fields = [
 ```
 
 No additional configuration needed — the built-in `DefaultSelect` is used.
+
+## Operator-Aware Value Inputs
+
+`FilterRow` automatically switches the value input based on the selected operator:
+
+| Operator | Input Type | Component | Value shape |
+|----------|-----------|-----------|-------------|
+| `between` | Dual from/to inputs | `BetweenValueInput` | `string[]` (`[from, to]`) |
+| `in`, `nin` (enum) | Checkbox dropdown | `MultiSelectInput` | `string[]` |
+| `in`, `nin` (text/numeric/date) | Tag/chip input | `TagValueInput` | `string[]` |
+| `isnull`, `isnotnull` | No input (hidden) | — | `"true"` |
+| All others | Single input | `<input>` or `renderValueInput` | `string` |
+
+### BetweenValueInput
+
+Renders two side-by-side inputs for range queries. Delegates to `renderSingleInput` for custom date pickers:
+
+```tsx
+import { BetweenValueInput } from "@pia-team/pia-ui-tmf630-search";
+
+<BetweenValueInput
+  value={["2026-01-01", "2026-12-31"]}
+  onChange={(pair) => console.log(pair)}
+  fieldType="date"
+  field={currentField}
+  renderSingleInput={({ value, onChange, betweenIndex, displayFormat }) => (
+    <DatePicker value={value} onChange={onChange}
+      mode={displayFormat === "datetime" ? "datetime" : "date"} />
+  )}
+/>
+```
+
+### TagValueInput
+
+Tag/chip input for multi-value operators (`in`/`nin`) on text, numeric, or date fields. Type a value and press Enter or comma to add:
+
+```tsx
+import { TagValueInput } from "@pia-team/pia-ui-tmf630-search";
+
+<TagValueInput
+  values={["Alice", "Bob"]}
+  onChange={(tags) => console.log(tags)}
+  placeholder="Type and press Enter"
+  inputType="text"
+/>
+```
+
+### MultiSelectInput
+
+Checkbox dropdown for multi-value operators on enum fields:
+
+```tsx
+import { MultiSelectInput } from "@pia-team/pia-ui-tmf630-search";
+
+<MultiSelectInput
+  values={["JSLT"]}
+  options={[
+    { value: "JSLT", label: "JSLT" },
+    { value: "XSLT", label: "XSLT" },
+  ]}
+  onChange={(selected) => console.log(selected)}
+/>
+```
+
+### Backend Serialization
+
+Multi-value operators are serialized as **repeated query parameters**, matching the TMF630 toolkit specification:
+
+```
+# between
+birthdate.between=1990-01-01&birthdate.between=1999-12-31
+
+# in
+surname.in=Doe&surname.in=Brown
+
+# isnull (no value)
+name.isnull=true
+```
 
 ## Controlled Open/Close
 
@@ -421,11 +634,14 @@ After you enable Pages once (repo **Settings → Pages → Source: GitHub Action
 Workflow: [`.github/workflows/storybook-pages.yml`](.github/workflows/storybook-pages.yml).
 
 Available stories:
-- **Query core/Playground** — `serializeFilters` / `deserializeFilters` and compound JSON round-trip
-- **Components/FilterPanel** — Default, with initial filters, with chips, unstyled, custom classNames
+- **Query core/Playground** — `serializeFilters` / `deserializeFilters` (with typed `fieldConfigs`) and compound JSON round-trip
+- **Components/FilterPanel** — Default, with initial filters, with chips, unstyled, custom classNames, **config-driven** (operator presets + enum dropdown), **operator-aware inputs** (between, in/nin, isnull/isnotnull)
 - **Components/FilterChips** — Default, empty, single filter
-- **Components/CompoundFilterPanel** — Interactive AND/OR builder, pre-populated groups
-- **Hooks/useFilterPanel** — Headless hook demo with raw HTML
+- **Components/CompoundFilterPanel** — Interactive AND/OR builder, pre-populated groups, operator-aware fields
+- **Components/BetweenValueInput** — Dual from/to inputs for `between` operator, custom renderers
+- **Components/TagValueInput** — Tag/chip input for `in`/`nin` operators on text/numeric/date fields
+- **Components/MultiSelectInput** — Checkbox dropdown for `in`/`nin` operators on enum fields
+- **Hooks/useFilterPanel** — Headless hook demo, **operator-restricted fields** (preset + explicit operators + nullable + enum dropdown)
 
 ## Development
 
@@ -436,7 +652,7 @@ npm install
 # Build all packages (ESM + CJS + types)
 npm run build
 
-# Run tests (65 tests across 5 suites)
+# Run tests (181 tests across 13 suites)
 npm test
 
 # Watch mode
@@ -462,13 +678,19 @@ pia-ui-components/
 │   │   │   ├── deserialize.ts       # Query params → conditions
 │   │   │   ├── sort.ts              # TMF630 sort serialize/deserialize/toggle
 │   │   │   ├── pagination.ts        # TMF630 header parsing (X-Total-Count, Content-Range)
-│   │   │   └── compound.ts          # V2: AND/OR tree utilities
-│   │   └── tests/                   # 52 unit tests
+│   │   │   ├── compound.ts          # V2: AND/OR tree utilities
+│   │   │   └── config.ts            # Search config: parse, normalize, validate, operator presets
+│   │   └── tests/                   # 116 unit tests (core logic)
 │   └── tmf630-search-component/     # React UI
 │       ├── src/
 │       │   ├── FilterPanel.tsx       # Main filter panel
-│       │   ├── FilterRow.tsx         # Single filter row
+│       │   ├── FilterRow.tsx         # Single filter row (operator-aware value inputs)
 │       │   ├── FilterChips.tsx       # Active filter chips
+│       │   ├── BetweenValueInput.tsx # Dual from/to inputs for between operator
+│       │   ├── TagValueInput.tsx     # Tag/chip input for in/nin operators
+│       │   ├── MultiSelectInput.tsx  # Checkbox dropdown for in/nin on enums
+│       │   ├── DateInput.tsx         # Native date/datetime input
+│       │   ├── DefaultValueInput.tsx # Built-in type-switching value input
 │       │   ├── CompoundFilterPanel.tsx # V2: AND/OR grouped filters
 │       │   ├── DefaultSelect.tsx     # Radix-based select (replaceable)
 │       │   ├── useFilterPanel.ts     # Headless hook
@@ -478,9 +700,10 @@ pia-ui-components/
 │       │   ├── utils.ts              # cn(), slot(), setClassMerger()
 │       │   ├── variables.css         # CSS custom properties
 │       │   ├── filter-components.css # Prebuilt CSS (no Tailwind needed)
+│       │   ├── SearchConfigContext.tsx # Config provider, useSearchConfig, useSearchFields
 │       │   ├── i18n/                 # en.ts, tr.ts label presets
 │       │   └── stories/              # Storybook stories
-│       └── tests/                    # 13 hook tests
+│       └── tests/                    # 60 component + hook tests
 ├── .storybook/                       # Storybook config
 ├── .github/workflows/ci.yml          # CI: build + test + publish
 └── vitest.config.ts                  # Test config
@@ -494,10 +717,16 @@ pia-ui-components/
 |--------|------|-------------|
 | `FilterPanel` | Component | Main filter panel with trigger button |
 | `FilterChips` | Component | Active filter chips display |
-| `FilterRow` | Component | Single filter row (field, operator, value) |
+| `FilterRow` | Component | Single filter row with operator-aware value inputs |
+| `BetweenValueInput` | Component | Dual from/to inputs for `between` operator |
+| `TagValueInput` | Component | Tag/chip input for `in`/`nin` on text/numeric/date fields |
+| `MultiSelectInput` | Component | Checkbox dropdown for `in`/`nin` on enum fields |
 | `CompoundFilterPanel` | Component | V2: AND/OR grouped filter builder |
 | `DefaultSelect` | Component | Radix-based select (replaceable via slots) |
 | `FilterThemeProvider` | Component | Global theme context provider |
+| `DateInput` | Component | Native browser date/datetime input with `mode` prop |
+| `DefaultValueInput` | Component | Built-in type-switching input (date/enum/text/numeric) |
+| `SearchConfigProvider` | Component | Config-driven search provider (fetches config from URL) |
 
 ### Hooks
 
@@ -506,6 +735,8 @@ pia-ui-components/
 | `useFilterPanel` | Hook | Headless state management for filters |
 | `useFilterTheme` | Hook | Read current theme from context |
 | `useFocusTrap` | Hook | Focus trap for modal-like panels |
+| `useSearchConfig` | Hook | Read raw search config context |
+| `useSearchFields` | Hook | Get UI-ready `FilterableField[]` from config context |
 
 ### Functions
 
@@ -528,11 +759,22 @@ pia-ui-components/
 | `countConditions` | Count leaves in tree |
 | `isFilterGroup` | Type guard for FilterGroup |
 | `getOperatorsForFieldType` | Get operators for a field type |
+| `operatorsRequireNoValue` | Check if operator needs no value input (`isnull`, `isnotnull`) |
+| `isMultiValueOperator` | Check if operator expects array values (`between`, `in`, `nin`) |
+| `parseSearchConfig` | Parse and validate raw search-config JSON |
+| `getContext` | Get a named context from parsed config |
+| `configToFilterableFields` | Convert config context → `FilterableField[]` |
+| `buildSerializeOptions` | Config context → `SerializeFiltersOptions` |
+| `buildValidator` | Config context → per-field validation function |
+| `serializeResponseFields` | Config context → TMF630 `fields=` parameter |
+| `formatDateForDisplay` | Format date value using display pattern |
+| `formatDateValue` | Format date for wire/display based on field config |
+| `createSearchFilter` | Build a FilterCondition from search text + config defaults |
 | `setClassMerger` | Plug in tailwind-merge or custom merger |
 | `normalizeDateToISO` | Date string → ISO 8601 (timezone-aware) |
 | `normalizeDateTimeForDisplay` | Date/ISO string → `YYYY-MM-DD HH:mm` display |
 | `normalizeDateToYYYYMMDD` | Date string → YYYY-MM-DD |
-| `getLocalTimezoneOffset` | Runtime timezone offset (e.g. `+03:00`, `Z`) |
+| `getLocalTimezoneOffset` | Runtime timezone offset (e.g. `+03:00`, `Z`) — via `@pia-team/pia-ui-tmf630-query-core` |
 
 ### Types
 
@@ -546,8 +788,15 @@ pia-ui-components/
 | `FilterGroup` | Compound filter group `{ logic, conditions }` |
 | `FilterNode` | Union: `FilterCondition \| FilterGroup` |
 | `FilterLogic` | `"and" \| "or"` |
-| `FilterableField` | Field definition `{ name, label, type, enumOptions? }` |
+| `FilterableField` | Field definition `{ name, label, type, displayFormat?, operators?, enumOptions?, validate? }` |
 | `OperatorDefinition` | Operator metadata `{ value, requiresValue, isMultiValue }` |
+| `ValueInputSlotProps` | Props for `renderValueInput` callback `{ value, onChange, type, enumOptions, ... }` |
+| `BetweenValueInputProps` | Props for `BetweenValueInput` component |
+| `TagValueInputProps` | Props for `TagValueInput` component |
+| `MultiSelectInputProps` | Props for `MultiSelectInput` component |
+| `FieldConfig` | Config-level field descriptor `{ type, operatorSet, operators, nullable, values, validation }` |
+| `SearchConfig` | Parsed search-config structure |
+| `SearchContextConfig` | Single context within config (fields, defaults, responseFields) |
 
 ### Constants
 
@@ -562,6 +811,137 @@ pia-ui-components/
 | `DATE_OPERATORS` | Operators for date fields |
 | `NUMERIC_OPERATORS` | Operators for numeric fields |
 | `ENUM_OPERATORS` | Operators for enum fields |
+| `OPERATOR_PRESETS` | Named operator preset map (`text-search`, `text-exact`, `selection`, `date-range`, `numeric`) |
+
+## Real-World Integration Example: transformation-ui
+
+> This section demonstrates how one consumer application integrates the library end-to-end. Your application's integration will follow the same patterns with your own fields, API endpoints, and UI framework.
+
+This section shows how [`transformation-ui`](https://github.com/pia-team/transformation-ui) integrates the full config-driven search system end-to-end.
+
+### Architecture
+
+```
+search-config.json                    transformation-ui (Next.js)
+   (ConfigMap / volume)
+        │
+        ▼
+  GET /api/search-config  ──►  SearchConfigProvider  ──►  useSearchFields()
+                                     │                         │
+                                     ▼                         ▼
+                              raw config context        FilterableField[]
+                                     │                    (with operators)
+                                     ▼                         │
+                         buildSerializeOptions()               ▼
+                         serializeResponseFields()       FilterPanel / FilterChips
+                                     │
+                                     ▼
+                            serializeFilters()  ──►  TMF630 query string
+                            (filter=..., fields=...)      to backend API
+```
+
+### Layout (SearchConfigProvider)
+
+In `(main)/layout.tsx`, the config provider wraps all authenticated pages:
+
+```tsx
+import { SearchConfigProvider } from "@pia-team/pia-ui-tmf630-search";
+
+export default function MainLayout({ children }) {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  return (
+    <SearchConfigProvider url={`${basePath}/api/search-config`}>
+      {children}
+    </SearchConfigProvider>
+  );
+}
+```
+
+### Filter Panel with Operator-Aware Inputs
+
+In `transformations/page.tsx`, the config fields drive the panel. The library automatically renders `BetweenValueInput`, `TagValueInput`, and `MultiSelectInput` based on the selected operator. Custom date pickers and enum selects are integrated via `renderValueInput`:
+
+```tsx
+import { useSearchFields, FilterPanel, FilterChips, serializeFilters } from "@pia-team/pia-ui-tmf630-search";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+function TransformationsPage() {
+  const configFields = useSearchFields();
+
+  return (
+    <FilterPanel
+      fields={configFields}
+      labels={labels}
+      onApply={(filters) => {
+        const qs = serializeFilters(filters);
+        router.push(`?${qs}`);
+      }}
+      renderValueInput={({ value, onChange, placeholder, className, type, enumOptions, displayFormat, betweenIndex }) =>
+        type === "date" ? (
+          <DatePicker value={value || undefined} onChange={onChange}
+            placeholder={
+              betweenIndex === 0 ? "From" :
+              betweenIndex === 1 ? "To" :
+              placeholder
+            }
+            className={className}
+            mode={displayFormat === "datetime" ? "datetime" : "date"} />
+        ) : type === "enum" && enumOptions?.length ? (
+          <Select value={value || undefined} onValueChange={onChange}>
+            <SelectTrigger className={className}>
+              <SelectValue placeholder={placeholder || "Select..."} />
+            </SelectTrigger>
+            <SelectContent>
+              {enumOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <input type={type === "numeric" ? "number" : "text"} value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={
+              betweenIndex === 0 ? "From" :
+              betweenIndex === 1 ? "To" :
+              placeholder
+            }
+            className={className} />
+        )
+      }
+    />
+  );
+}
+```
+
+### Admin Configuration Scenarios
+
+| Scenario | Config change in `search-config.json` | Effect |
+|---|---|---|
+| Add a new searchable field | Add `"newField": { "type": "text" }` to `fields` | Field appears in filter dropdown, text-search operators auto-assigned |
+| Restrict operators to exact match | Set `"operatorSet": "text-exact"` | Only eq, ne, eqi, nei, in, nin shown |
+| Allow null checks on a date field | Add `"nullable": true` | `isnull` and `isnotnull` appended to operator list |
+| Custom operator list for one field | Set `"operators": ["eq", "ne", "contains"]` | Only these 3 operators available for that field |
+| Add enum dropdown with static values | Set `"type": "enum"`, `"values": [...]` | Dropdown renders instead of text input |
+| Add client-side validation | Set `"validation": { "pattern": "...", "maxLength": 100 }` | Input validated before filter applied |
+| Change date display format | Set root `"displayPattern": "yyyy-MM-dd"` | All date fields use new display format |
+| No code changes required | All above are JSON-only | Restart/reload serves new config |
+
+### Deployment Workflow
+
+```
+Developer/Admin                    transformation-ui
+     │
+     ├── Edits search-config.json
+     │   (local file / ConfigMap / volume mount)
+     │
+     ├── Docker Compose: restart container
+     │   or Kubernetes: kubectl apply -f configmap.yaml && kubectl rollout restart
+     │
+     └── Users refresh browser → new config active
+```
 
 ## CI/CD
 

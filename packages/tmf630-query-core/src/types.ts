@@ -76,6 +76,8 @@ export interface SearchParams {
   sort?: string;
   fields?: string;
   filters?: FilterCondition[];
+  /** Config-driven field definitions for type-aware serialization */
+  fieldConfigs?: import("./config.js").FieldConfig[];
 }
 
 /** Query param value for serialization (single or repeated for multi-value ops) */

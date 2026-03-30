@@ -34,6 +34,7 @@ export {
   normalizeDateToYYYYMMDD,
   normalizeDateTimeForDisplay,
   getLocalTimezoneOffset,
+  formatDateValue,
   serializeFilters,
 } from "./serialize.js";
 export type { SerializeFiltersOptions } from "./serialize.js";
@@ -57,3 +58,43 @@ export {
   toggleGroupLogic,
   countConditions,
 } from "./compound.js";
+
+/* -- V3: Search configuration -------------------------------------- */
+export {
+  parseSearchConfig,
+  normalizeSearchConfig,
+  getContext,
+  configToFilterableFields,
+  buildSerializeOptions,
+  buildValidator,
+  serializeResponseFields,
+  camelToTitle,
+  isTemporalType,
+  getOperatorGroupForType,
+  getDefaultDisplayFormat,
+  OPERATOR_PRESETS,
+  createSearchFilter,
+} from "./config.js";
+export type {
+  FieldConfigType,
+  DateDisplayFormat,
+  EnumValue,
+  FieldValidation,
+  RawFieldConfigValue,
+  RawFieldsMap,
+  RawSearchContextConfig,
+  RawSearchConfig,
+  FieldConfig,
+  SearchContextConfig,
+  SearchConfig,
+  SearchableField,
+} from "./config.js";
+
+/* -- V3: Date display formatting ----------------------------------- */
+export { formatDateForDisplay } from "./date-display.js";
+
+/* -- V3: JsonPath filter= serialization ---------------------------- */
+export {
+  serializeToJsonPathFilter,
+  deserializeJsonPathFilter,
+} from "./jsonpath-filter.js";

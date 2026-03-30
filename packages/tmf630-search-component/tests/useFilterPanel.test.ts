@@ -177,4 +177,87 @@ describe("useFilterPanel", () => {
     expect(numOps.some((o) => o.value === "gte")).toBe(true);
     expect(numOps.some((o) => o.value === "contains")).toBe(false);
   });
+
+  it("getFieldOperators respects operators allowlist on fields", () => {
+    const restrictedFields: FilterableField[] = [
+      { name: "email", label: "Email", type: "text", operators: ["eq", "ne", "in"] },
+      { name: "engine", label: "Engine", type: "enum", operators: ["eq", "ne"], enumOptions: [
+        { value: "JSLT", label: "JSLT" },
+      ] },
+    ];
+    const { result } = renderHook(() =>
+      useFilterPanel({ fields: restrictedFields }),
+    );
+    const emailOps = result.current.getFieldOperators("email");
+    expect(emailOps.map((o) => o.value)).toEqual(expect.arrayContaining(["eq", "ne", "in"]));
+    expect(emailOps.some((o) => o.value === "contains")).toBe(false);
+    expect(emailOps.some((o) => o.value === "gte")).toBe(false);
+
+    const engineOps = result.current.getFieldOperators("engine");
+    expect(engineOps.map((o) => o.value)).toEqual(["eq", "ne"]);
+    expect(engineOps.some((o) => o.value === "in")).toBe(false);
+  });
+
+  it("applies isnull operator without value", () => {
+    const onApply = vi.fn();
+    const nullableFields: FilterableField[] = [
+      { name: "note", label: "Note", type: "text", operators: ["eq", "isnull", "isnotnull"] },
+    ];
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields: nullableFields,
+        onApply,
+        initialFilters: [{ field: "note", operator: "isnull", value: "" }],
+      }),
+    );
+    act(() => result.current.apply());
+    expect(onApply).toHaveBeenCalledWith([
+      { field: "note", operator: "isnull", value: "" },
+    ]);
+  });
+
+  it("applies between filter with array of 2 values", () => {
+    const onApply = vi.fn();
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        onApply,
+        initialFilters: [{ field: "age", operator: "between", value: ["10", "30"] }],
+      }),
+    );
+    act(() => result.current.apply());
+    expect(onApply).toHaveBeenCalledWith([
+      { field: "age", operator: "between", value: ["10", "30"] },
+    ]);
+  });
+
+  it("applies in filter with array of values", () => {
+    const onApply = vi.fn();
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        onApply,
+        initialFilters: [{ field: "name", operator: "in", value: ["Alice", "Bob"] }],
+      }),
+    );
+    act(() => result.current.apply());
+    expect(onApply).toHaveBeenCalledWith([
+      { field: "name", operator: "in", value: ["Alice", "Bob"] },
+    ]);
+  });
+
+  it("applies nin filter with enum array values", () => {
+    const onApply = vi.fn();
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        onApply,
+        initialFilters: [{ field: "status", operator: "nin", value: ["active"] }],
+      }),
+    );
+    act(() => result.current.apply());
+    expect(onApply).toHaveBeenCalledWith([
+      { field: "status", operator: "nin", value: ["active"] },
+    ]);
+  });
 });

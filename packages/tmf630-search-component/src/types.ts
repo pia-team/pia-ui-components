@@ -15,7 +15,11 @@ export interface FilterableField {
   name: string;
   label: string;
   type: FieldType;
+  displayFormat?: "date" | "datetime";
+  displayPattern?: string;
   enumOptions?: { value: string; label: string }[];
+  /** Allowed operator codes. When set, only these operators are shown. */
+  operators?: string[];
   /** Per-field validation. Return error string or null. */
   validate?: (value: string | string[]) => string | null;
 }
