@@ -189,7 +189,7 @@ describe("FilterRow — operator-aware value inputs", () => {
     expect(onUpdate).toHaveBeenCalledWith(0, {
       field: "version",
       operator: "between",
-      value: ["", ""],
+      value: ["5", ""],
     });
   });
 
@@ -212,7 +212,7 @@ describe("FilterRow — operator-aware value inputs", () => {
     expect(onUpdate).toHaveBeenCalledWith(0, {
       field: "name",
       operator: "in",
-      value: [],
+      value: ["test"],
     });
   });
 

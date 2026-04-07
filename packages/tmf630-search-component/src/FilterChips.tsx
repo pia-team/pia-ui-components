@@ -42,6 +42,10 @@ export interface FilterChipsProps {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+function stripTimeTokens(pattern: string): string {
+  return pattern.replace(/[\s.,\-/]*[Hhms:]+[Hhms:\s]*/g, "").replace(/\s*a\b/gi, "").trim();
+}
+
 function formatSingleFilterValue(raw: string, field?: FilterableField): string {
   if (field?.type === "enum" && field.enumOptions?.length) {
     const opt = field.enumOptions.find((o) => o.value === raw);
@@ -54,8 +58,15 @@ function formatSingleFilterValue(raw: string, field?: FilterableField): string {
     field?.displayFormat === "datetime";
 
   if (isDateLike && raw) {
+    const dateOnlyValue = field?.displayFormat === "date" ? String(raw).substring(0, 10) : String(raw);
     if (field?.displayPattern) {
-      return formatDateForDisplay(String(raw), field.displayPattern);
+      const pattern = field.displayFormat === "date"
+        ? stripTimeTokens(field.displayPattern)
+        : field.displayPattern;
+      return formatDateForDisplay(dateOnlyValue, pattern);
+    }
+    if (field?.displayFormat === "date") {
+      return dateOnlyValue;
     }
     return normalizeDateTimeForDisplay(String(raw)) || raw;
   }

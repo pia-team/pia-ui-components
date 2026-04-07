@@ -24,11 +24,12 @@ const SAMPLE_PARAMS = `{
 }`;
 
 const SAMPLE_FIELD_CONFIGS: FieldConfig[] = [
-  { name: "name", type: "text", displayName: "Name", displayFormat: null, displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
-  { name: "status", type: "text", displayName: "Status", displayFormat: null, displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
-  { name: "amount", type: "numeric", displayName: "Amount", displayFormat: null, displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
-  { name: "createdDate", type: "offsetDateTime", displayName: "Created Date", displayFormat: "date", displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
-  { name: "createdOn", type: "offsetDateTime", displayName: "Created On", displayFormat: "date", displayPattern: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "name", type: "text", displayName: "Name", displayFormat: null, displayPattern: null, responseDisplayFormat: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "status", type: "text", displayName: "Status", displayFormat: null, displayPattern: null, responseDisplayFormat: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "amount", type: "numeric", displayName: "Amount", displayFormat: null, displayPattern: null, responseDisplayFormat: null, values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "createdDate", type: "offsetDateTime", displayName: "Created Date", displayFormat: "date", displayPattern: "dd/MM/yyyy", responseDisplayFormat: "date", values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "createdOn", type: "offsetDateTime", displayName: "Created On", displayFormat: "date", displayPattern: "dd/MM/yyyy", responseDisplayFormat: "date", values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
+  { name: "modifiedOn", type: "offsetDateTime", displayName: "Modified On", displayFormat: "datetime", displayPattern: "dd/MM/yyyy HH:mm", responseDisplayFormat: "datetime", values: null, defaultOperator: null, validation: null, operators: [], nullable: false },
 ];
 
 const SAMPLE_COMPOUND = `{

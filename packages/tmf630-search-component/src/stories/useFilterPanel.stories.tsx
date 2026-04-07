@@ -5,7 +5,14 @@ import { OPERATOR_PRESETS } from "@pia-team/pia-ui-tmf630-query-core";
 
 const fields: FilterableField[] = [
   { name: "name", label: "Name", type: "text" },
-  { name: "createdDate", label: "Created Date", type: "date" },
+  {
+    name: "createdDate",
+    label: "Created Date",
+    type: "date",
+    displayFormat: "date",
+    displayPattern: "dd/MM/yyyy",
+    responseDisplayFormat: "date",
+  },
   { name: "amount", label: "Amount", type: "numeric" },
   {
     name: "status",
@@ -21,8 +28,8 @@ const fields: FilterableField[] = [
 const operatorRestrictedFields: FilterableField[] = [
   { name: "name", label: "Name", type: "text", operators: OPERATOR_PRESETS["text-search"] },
   { name: "email", label: "Email", type: "text", operators: ["eq", "ne", "contains", "containsi", "in", "nin"] },
-  { name: "createdDate", label: "Created Date", type: "date", operators: OPERATOR_PRESETS["date-range"] },
-  { name: "modifiedDate", label: "Modified Date", type: "date", operators: [...OPERATOR_PRESETS["date-range"], "isnull", "isnotnull"] },
+  { name: "createdDate", label: "Created Date", type: "date", displayFormat: "date", displayPattern: "dd/MM/yyyy", responseDisplayFormat: "date", operators: OPERATOR_PRESETS["date-range"] },
+  { name: "modifiedDate", label: "Modified Date", type: "date", displayFormat: "datetime", displayPattern: "dd/MM/yyyy HH:mm", operators: [...OPERATOR_PRESETS["date-range"], "isnull", "isnotnull"] },
   {
     name: "engine",
     label: "Engine",

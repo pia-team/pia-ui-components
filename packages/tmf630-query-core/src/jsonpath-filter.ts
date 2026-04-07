@@ -9,7 +9,8 @@
 import type { FilterCondition, FilterGroup, FilterNode } from "./types.js";
 import { isFilterGroup } from "./types.js";
 import type { FieldConfig } from "./config.js";
-import { formatDateValue, } from "./serialize.js";
+import { isTemporalType } from "./config.js";
+import { formatDateValue } from "./serialize.js";
 
 /* ================================================================ */
 /*  Operator mapping                                                 */
@@ -46,6 +47,81 @@ function formatValue(value: string): string {
   return `'${value.replace(/'/g, "\\'")}'`;
 }
 
+/* ---------------------------------------------------------------- */
+/*  Date displayFormat="date" → compound expression translation      */
+/* ---------------------------------------------------------------- */
+
+function computeNextDay(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function dayBoundary(dateStr: string, fieldType: FieldConfig["type"]): string {
+  return formatDateValue(`${dateStr} 00:00:00`, fieldType);
+}
+
+function nextDayBoundary(dateStr: string, fieldType: FieldConfig["type"]): string {
+  return formatDateValue(`${computeNextDay(dateStr)} 00:00:00`, fieldType);
+}
+
+/**
+ * When displayFormat="date" but the backend stores timestamps,
+ * expand eq/ne/gt/gte/lt/lte/between to day-boundary range expressions.
+ * Returns null when no translation is needed.
+ */
+function translateDateForJsonPath(
+  condition: FilterCondition,
+  field: FieldConfig,
+): string | null {
+  if (!field.displayFormat || field.displayFormat !== "date") return null;
+  if (field.type === "date") return null;
+  if (!isTemporalType(field.type)) return null;
+
+  const f = `@.${condition.field}`;
+  const type = field.type;
+
+  if (condition.operator === "between") {
+    const vals = Array.isArray(condition.value) ? condition.value : [];
+    if (vals.length < 2) return null;
+    const s = vals[0]!.trim();
+    const e = vals[1]!.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) return null;
+    return `(${f} >= ${formatValue(dayBoundary(s, type))} && ${f} < ${formatValue(nextDayBoundary(e, type))})`;
+  }
+
+  const rawValue = Array.isArray(condition.value)
+    ? condition.value[0] ?? ""
+    : condition.value;
+  const trimmed = rawValue.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+
+  const start = dayBoundary(trimmed, type);
+  const nextStart = nextDayBoundary(trimmed, type);
+
+  switch (condition.operator) {
+    case "eq":
+      return `(${f} >= ${formatValue(start)} && ${f} < ${formatValue(nextStart)})`;
+    case "ne":
+      return `(${f} < ${formatValue(start)} || ${f} >= ${formatValue(nextStart)})`;
+    case "gt":
+      return `${f} >= ${formatValue(nextStart)}`;
+    case "gte":
+      return `${f} >= ${formatValue(start)}`;
+    case "lt":
+      return `${f} < ${formatValue(start)}`;
+    case "lte":
+      return `${f} < ${formatValue(nextStart)}`;
+    default:
+      return null;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+
 function serializeNode(
   node: FilterNode,
   fieldConfigMap: Map<string, FieldConfig>,
@@ -55,6 +131,13 @@ function serializeNode(
   }
 
   const condition = node as FilterCondition;
+  const fieldConfig = fieldConfigMap.get(condition.field);
+
+  if (fieldConfig) {
+    const translated = translateDateForJsonPath(condition, fieldConfig);
+    if (translated) return translated;
+  }
+
   const op = OP_MAP[condition.operator];
   if (!op) {
     throw new Error(
@@ -62,7 +145,6 @@ function serializeNode(
     );
   }
 
-  const fieldConfig = fieldConfigMap.get(condition.field);
   let rawValue = Array.isArray(condition.value)
     ? condition.value[0] ?? ""
     : condition.value;

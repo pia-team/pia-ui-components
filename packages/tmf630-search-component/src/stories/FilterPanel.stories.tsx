@@ -9,7 +9,13 @@ import { OPERATOR_PRESETS } from "@pia-team/pia-ui-tmf630-query-core";
 
 const sampleFields: FilterableField[] = [
   { name: "name", label: "Name", type: "text" },
-  { name: "createdDate", label: "Created Date", type: "date" },
+  {
+    name: "createdDate",
+    label: "Created Date",
+    type: "date",
+    displayFormat: "date",
+    displayPattern: "dd/MM/yyyy",
+  },
   { name: "amount", label: "Amount", type: "numeric" },
   {
     name: "status",
@@ -120,12 +126,18 @@ const configDrivenFields: FilterableField[] = [
     name: "createdOn",
     label: "Created On",
     type: "date",
+    displayFormat: "date",
+    displayPattern: "dd/MM/yyyy",
+    responseDisplayFormat: "date",
     operators: OPERATOR_PRESETS["date-range"],
   },
   {
     name: "modifiedOn",
     label: "Modified On",
     type: "date",
+    displayFormat: "datetime",
+    displayPattern: "dd/MM/yyyy HH:mm",
+    responseDisplayFormat: "datetime",
     operators: [...OPERATOR_PRESETS["date-range"], "isnull", "isnotnull"],
   },
   {
@@ -196,12 +208,15 @@ const operatorAwareFields: FilterableField[] = [
     label: "Created On",
     type: "date",
     displayFormat: "date",
+    displayPattern: "dd/MM/yyyy",
+    responseDisplayFormat: "date",
   },
   {
     name: "modifiedOn",
     label: "Modified On",
     type: "date",
     displayFormat: "datetime",
+    displayPattern: "dd/MM/yyyy HH:mm",
   },
   { name: "version", label: "Version", type: "numeric" },
   {

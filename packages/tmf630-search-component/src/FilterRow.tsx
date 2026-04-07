@@ -106,6 +106,7 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
 
     const fieldDef = fields.find((f) => f.name === filter.field);
     const fieldType = fieldDef?.type ?? getFieldType(filter.field, fields);
+    const isDateOnly = fieldDef?.displayFormat === "date";
     const allOperators = getOperatorsForFieldType(fieldType, customFieldTypes);
     const operators = fieldDef?.operators
       ? allOperators.filter((op) => fieldDef.operators!.includes(op.value))
@@ -118,7 +119,7 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
       ? filter.value.join(", ")
       : (filter.value ?? "");
     const displayValue =
-      isDateSingleValue && rawDisplayValue
+      isDateSingleValue && rawDisplayValue && !isDateOnly
         ? normalizeDateTimeForDisplay(String(rawDisplayValue)) || rawDisplayValue
         : rawDisplayValue;
 
@@ -131,10 +132,20 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
         : allNewOperators;
       const defaultOp = newOperators[0];
       const typeChanged = newType !== fieldType;
+
+      let newValue: string | string[] = "";
+      if (defaultOp?.requiresValue === false || typeChanged) {
+        newValue = "";
+      } else {
+        const raw = Array.isArray(filter.value) ? filter.value[0] ?? "" : (filter.value ?? "");
+        const newIsDateOnly = field?.displayFormat === "date";
+        newValue = newIsDateOnly ? raw.substring(0, 10) : raw;
+      }
+
       onUpdate(index, {
         field: fieldName,
         operator: defaultOp?.value ?? "eq",
-        value: defaultOp?.requiresValue === false || typeChanged ? "" : displayValue,
+        value: newValue,
       });
     };
 
@@ -145,16 +156,21 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
       const op = operators.find((o) => o.value === operator);
       const newIsBetween = operator === "between";
       const newIsInNin = operator === "in" || operator === "nin";
+      const currentSingle = Array.isArray(filter.value)
+        ? filter.value[0] ?? ""
+        : (filter.value ?? "");
+
       let newValue: string | string[] = "";
-      if (op?.requiresValue !== false) {
-        if (newIsBetween) {
-          newValue = ["", ""];
-        } else if (newIsInNin) {
-          newValue = [];
-        } else {
-          newValue = "";
-        }
+      if (op?.requiresValue === false) {
+        newValue = "";
+      } else if (newIsBetween) {
+        newValue = [currentSingle, ""];
+      } else if (newIsInNin) {
+        newValue = currentSingle ? [currentSingle] : [];
+      } else {
+        newValue = currentSingle;
       }
+
       onUpdate(index, {
         ...filter,
         operator: operator as FilterCondition["operator"],
@@ -163,7 +179,7 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
     };
 
     const handleValueChange = (value: string) => {
-      if (isDateSingleValue && value) {
+      if (isDateSingleValue && value && !isDateOnly) {
         onUpdate(index, {
           ...filter,
           value: normalizeDateTimeForDisplay(value) || value,
@@ -177,8 +193,7 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
       onUpdate(index, { ...filter, value });
     };
 
-    const currentField = fields.find((f) => f.name === filter.field);
-    const isDateOnly = currentField?.displayFormat === "date";
+    const currentField = fieldDef;
     const datePlaceholder = isDateOnly ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm";
 
     const valuePlaceholder = fieldType === "date" ? datePlaceholder : "";

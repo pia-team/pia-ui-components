@@ -47,6 +47,7 @@ export interface RawFieldConfigValue {
   displayName?: string;
   displayFormat?: DateDisplayFormat;
   displayPattern?: string;
+  responseDisplayFormat?: DateDisplayFormat;
   values?: EnumValue[];
   defaultOperator?: FilterOperator;
   validation?: FieldValidation;
@@ -81,6 +82,8 @@ export interface FieldConfig {
   displayName: string;
   displayFormat: DateDisplayFormat | null;
   displayPattern: string | null;
+  /** Display format for table/response rendering. Falls back to displayFormat. */
+  responseDisplayFormat: DateDisplayFormat | null;
   values: EnumValue[] | null;
   defaultOperator: FilterOperator | null;
   validation: FieldValidation | null;
@@ -265,15 +268,20 @@ function normalizeField(
     );
   }
 
+  const displayFormat = isTemporal
+    ? (raw.displayFormat ?? getDefaultDisplayFormat(type))
+    : null;
+
   return {
     name,
     type,
     displayName: raw.displayName ?? camelToTitle(name),
-    displayFormat: isTemporal
-      ? (raw.displayFormat ?? getDefaultDisplayFormat(type))
-      : null,
+    displayFormat,
     displayPattern: isTemporal
       ? (raw.displayPattern ?? contextDisplayPattern)
+      : null,
+    responseDisplayFormat: isTemporal
+      ? (raw.responseDisplayFormat ?? displayFormat)
       : null,
     values: raw.values ?? null,
     defaultOperator: raw.defaultOperator ?? null,
@@ -437,6 +445,8 @@ export interface SearchableField {
   type: BuiltInFieldType;
   displayFormat?: DateDisplayFormat;
   displayPattern?: string;
+  /** Display format for table/response columns. Falls back to displayFormat. */
+  responseDisplayFormat?: DateDisplayFormat;
   enumOptions?: { value: string; label: string }[];
   operators?: string[];
   validate?: (value: string | string[]) => string | null;
@@ -462,6 +472,9 @@ export function configToFilterableFields(
     }
     if (field.displayPattern) {
       result.displayPattern = field.displayPattern;
+    }
+    if (field.responseDisplayFormat) {
+      result.responseDisplayFormat = field.responseDisplayFormat;
     }
     if (field.values) {
       result.enumOptions = field.values.map((v) => ({

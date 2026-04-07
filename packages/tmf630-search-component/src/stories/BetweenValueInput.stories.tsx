@@ -75,6 +75,8 @@ function DateTemplate() {
           label: "Created On",
           type: "date",
           displayFormat: "date",
+          displayPattern: "dd/MM/yyyy",
+          responseDisplayFormat: "date",
         }}
       />
       <pre className="text-xs text-muted-foreground">
@@ -102,6 +104,7 @@ function DateTimeTemplate() {
           label: "Modified On",
           type: "date",
           displayFormat: "datetime",
+          displayPattern: "dd/MM/yyyy HH:mm",
         }}
       />
       <pre className="text-xs text-muted-foreground">

@@ -94,6 +94,145 @@ describe("serializeToJsonPathFilter", () => {
   });
 });
 
+describe("serializeToJsonPathFilter — date displayFormat='date' expansion", () => {
+  const TZ_OFFSET = new Date("2026-01-15T00:00:00").getTimezoneOffset();
+  const isUTC = TZ_OFFSET === 0;
+
+  function dateField(
+    name: string,
+    type: "offsetDateTime" | "instant" | "dateTime" = "offsetDateTime",
+  ): FieldConfig {
+    return fc({
+      name,
+      type,
+      displayFormat: "date",
+      operators: ["eq", "ne", "gt", "gte", "lt", "lte", "between"],
+      nullable: false,
+    });
+  }
+
+  const configs = [dateField("createdOn")];
+
+  it("expands eq to gte/lt day range", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "createdOn", operator: "eq", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain(">=");
+    expect(result).toContain("<");
+    expect(result).toContain("2026-01-15");
+    expect(result).toContain("2026-01-16");
+  });
+
+  it("expands ne to lt/gte compound", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "createdOn", operator: "ne", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain("<");
+    expect(result).toContain("||");
+    expect(result).toContain(">=");
+  });
+
+  it("translates gt to gte(nextDay)", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "createdOn", operator: "gt", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain(">=");
+    expect(result).toContain("2026-01-16");
+  });
+
+  it("translates gte to gte(startOfDay)", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "createdOn", operator: "gte", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain(">=");
+    expect(result).toContain("2026-01-15");
+  });
+
+  it("translates lt to lt(startOfDay)", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "createdOn", operator: "lt", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain("<");
+    expect(result).toContain("2026-01-15");
+  });
+
+  it("translates lte to lt(nextDay)", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "createdOn", operator: "lte", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain("<");
+    expect(result).toContain("2026-01-16");
+  });
+
+  it("expands between to gte/lt range", () => {
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [
+        { field: "createdOn", operator: "between", value: ["2026-01-10", "2026-01-20"] },
+      ],
+    };
+    const result = serializeToJsonPathFilter(group, configs);
+    expect(result).toContain(">=");
+    expect(result).toContain("<");
+    expect(result).toContain("2026-01-10");
+    expect(result).toContain("2026-01-21");
+  });
+
+  it("does NOT expand when displayFormat is datetime", () => {
+    const datetimeConfigs = [fc({
+      name: "modifiedOn", type: "offsetDateTime",
+      displayFormat: "datetime",
+      operators: ["eq"], nullable: false,
+    })];
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "modifiedOn", operator: "eq", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, datetimeConfigs);
+    expect(result).toContain("==");
+    expect(result).not.toContain(">=");
+  });
+
+  it("does NOT expand for pure date type (LocalDate)", () => {
+    const localDateConfigs = [fc({
+      name: "birthDate", type: "date",
+      displayFormat: "date",
+      operators: ["eq"], nullable: false,
+    })];
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "birthDate", operator: "eq", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, localDateConfigs);
+    expect(result).toContain("==");
+    expect(result).not.toContain(">=");
+  });
+
+  it("works with instant type", () => {
+    const instantConfigs = [dateField("ts", "instant")];
+    const group: FilterGroup = {
+      logic: "and",
+      conditions: [{ field: "ts", operator: "eq", value: "2026-01-15" }],
+    };
+    const result = serializeToJsonPathFilter(group, instantConfigs);
+    expect(result).toContain(">=");
+    expect(result).toContain("<");
+    expect(result).toMatch(/Z/);
+  });
+});
+
 describe("deserializeJsonPathFilter", () => {
   it("round-trips serialize then deserialize", () => {
     const original: FilterGroup = {

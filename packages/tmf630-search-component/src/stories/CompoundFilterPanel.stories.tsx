@@ -34,6 +34,8 @@ const operatorAwareFields: FilterableField[] = [
     label: "Created On",
     type: "date",
     displayFormat: "date",
+    displayPattern: "dd/MM/yyyy",
+    responseDisplayFormat: "date",
     operators: ["eq", "ne", "gt", "gte", "lt", "lte", "between", "isnull", "isnotnull"],
   },
   {
@@ -41,6 +43,7 @@ const operatorAwareFields: FilterableField[] = [
     label: "Modified On",
     type: "date",
     displayFormat: "datetime",
+    displayPattern: "dd/MM/yyyy HH:mm",
     operators: ["eq", "ne", "gt", "gte", "lt", "lte", "between", "isnull", "isnotnull"],
   },
   {

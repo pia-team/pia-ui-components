@@ -297,6 +297,44 @@ function TransformationsPage() {
 
 This section explains every property and option so you can build a config from scratch for any project.
 
+#### JSON Schema (IDE Autocomplete & Validation)
+
+A formal JSON Schema is bundled with the `@pia-team/pia-ui-tmf630-query-core` package. Add `$schema` to your config file for **instant autocomplete, hover docs, and validation** in VS Code / Cursor / IntelliJ:
+
+```json
+{
+  "$schema": "node_modules/@pia-team/pia-ui-tmf630-query-core/search-config.schema.json",
+  "fields": {
+    "name": {}
+  }
+}
+```
+
+**What you get:**
+- Autocomplete for all field properties (`type`, `displayFormat`, `operators`, etc.)
+- Enum validation for `type` (9 values), `displayFormat` (2 values), operators (22 values), presets (5 values)
+- Hover documentation explaining each property
+- Red squiggles for typos or invalid values
+
+**Setup steps:**
+
+1. Install or link the package:
+   ```bash
+   npm install @pia-team/pia-ui-tmf630-query-core
+   ```
+
+2. Add the `$schema` line to your `search-config.json`:
+   ```json
+   {
+     "$schema": "node_modules/@pia-team/pia-ui-tmf630-query-core/search-config.schema.json",
+     "fields": { ... }
+   }
+   ```
+
+3. Start typing — your IDE will suggest all valid properties and values.
+
+> The `$schema` key is ignored at runtime. It's only used by your IDE.
+
 #### Minimal Example
 
 The simplest valid config — a single text field:
@@ -329,6 +367,7 @@ That's it. The system auto-derives:
       "nullable": false,
       "displayFormat": "date",
       "displayPattern": "yyyy-MM-dd",
+      "responseDisplayFormat": "datetime",
       "values": [
         { "displayName": "Option A", "serverValue": "A" }
       ],
@@ -394,7 +433,8 @@ The `type` property determines the input type rendered in the UI and which opera
 | `operators` | string[] | — | Explicit operator list. **Highest priority** — overrides both `operatorSet` and type defaults. |
 | `nullable` | boolean | `false` | If `true`, appends `isnull` and `isnotnull` operators to the available list. Use for fields that can be `null` in the database. |
 | `displayFormat` | `"date"` or `"datetime"` | auto from type | **Only for temporal types.** Controls whether the date picker shows time. `"date"` → date-only picker (`YYYY-MM-DD`), `"datetime"` → date+time picker. Defaults: `date` → `"date"`, `offsetDateTime`/`dateTime`/`instant` → `"datetime"`. |
-| `displayPattern` | string | inherits global | Display format pattern for temporal fields (e.g. `"dd/MM/yyyy"`, `"yyyy-MM-dd HH:mm:ss"`). Overrides the top-level `displayPattern` for this field. |
+| `displayPattern` | string | inherits global | Display format pattern for temporal fields. Overrides the top-level `displayPattern` for this field. See [Display Pattern Tokens](#display-pattern-tokens) for all supported tokens. |
+| `responseDisplayFormat` | `"date"` or `"datetime"` | falls back to `displayFormat` | **Only for temporal types.** Controls the display format in **table/response columns**, independent of the filter picker. Use when the filter should be date-only but the table should show date+time (or vice versa). |
 | `values` | array | — | **Only for `type: "enum"`.** Static enum options. Each entry: `{ "displayName": "Label", "serverValue": "VALUE" }`. |
 | `defaultOperator` | string | — | Override the operator pre-selected when this field is chosen in the filter row. |
 | `validation` | object | — | Client-side validation rules (see below). |
@@ -433,6 +473,56 @@ All 22 TMF630 QueryDSL operators supported by the system:
 > - `regex` / `regexi` require `opentmf.tmf630.attribute-filtering.regex.enabled=true` on the backend.
 > - `between`, `in`, `nin` are sent as **repeated query parameters** (e.g. `field.in=A&field.in=B`), not comma-separated.
 > - Unknown fields/operators are validated by the backend's `on-unknown-field` and `on-unknown-operator` settings.
+
+#### Date `displayFormat: "date"` — Automatic Day-Boundary Expansion
+
+When a temporal field (e.g., `offsetDateTime`, `instant`) has `displayFormat: "date"`, the UI shows a **date-only picker** (no time). Behind the scenes, the serializer automatically converts operators to day-boundary ranges so the backend returns correct results:
+
+| Operator | User Picks | Serialized As |
+|---|---|---|
+| `eq` 2026-01-15 | `field.gte=2026-01-15T00:00:00+03:00` & `field.lt=2026-01-16T00:00:00+03:00` |
+| `ne` 2026-01-15 | `field.lt=2026-01-15T00:00:00+03:00` & `field.gte=2026-01-16T00:00:00+03:00` |
+| `gt` 2026-01-15 | `field.gte=2026-01-16T00:00:00+03:00` |
+| `gte` 2026-01-15 | `field.gte=2026-01-15T00:00:00+03:00` |
+| `lt` 2026-01-15 | `field.lt=2026-01-15T00:00:00+03:00` |
+| `lte` 2026-01-15 | `field.lt=2026-01-16T00:00:00+03:00` |
+| `between` 01-10..01-20 | `field.gte=2026-01-10T00:00:00+03:00` & `field.lt=2026-01-21T00:00:00+03:00` |
+
+This works for both **flat query params** (`serializeFilters`) and **JsonPath** (`serializeToJsonPathFilter`). No extra code needed — just set `displayFormat: "date"` in the config.
+
+> **Note:** If `displayFormat` is `"datetime"`, no expansion happens — the exact timestamp is sent as-is.
+
+#### Display Pattern Tokens
+
+The `displayPattern` property accepts a string with the following tokens. Separators (`/`, `.`, `-`, space, `:`) are placed literally between tokens.
+
+| Token | Meaning | Example |
+|---|---|---|
+| `yyyy` | 4-digit year | `2026` |
+| `yy` | 2-digit year | `26` |
+| `MM` | Month (01-12) | `03` |
+| `dd` | Day (01-31) | `15` |
+| `HH` | Hour 24h (00-23) | `14` |
+| `hh` | Hour 12h (01-12) | `02` |
+| `mm` | Minutes (00-59) | `30` |
+| `ss` | Seconds (00-59) | `45` |
+| `a` | AM/PM | `PM` |
+
+**Common patterns** (for value `2026-03-15T14:30:45`):
+
+| Pattern | Result |
+|---|---|
+| `dd/MM/yyyy` | `15/03/2026` |
+| `dd.MM.yyyy` | `15.03.2026` |
+| `yyyy-MM-dd` | `2026-03-15` |
+| `MM/dd/yyyy` | `03/15/2026` |
+| `dd/MM/yyyy HH:mm` | `15/03/2026 14:30` |
+| `dd/MM/yyyy HH:mm:ss` | `15/03/2026 14:30:45` |
+| `yyyy-MM-dd HH:mm` | `2026-03-15 14:30` |
+| `MM/dd/yyyy hh:mm a` | `03/15/2026 02:30 PM` |
+| `dd/MM/yyyy hh:mm a` | `15/03/2026 02:30 PM` |
+
+> **Tip:** Use date-only patterns (e.g. `dd/MM/yyyy`) for fields with `displayFormat: "date"`, and date+time patterns (e.g. `dd/MM/yyyy HH:mm`) for `displayFormat: "datetime"`. Mixing them triggers a console warning.
 
 #### Operator Presets
 
@@ -642,7 +732,9 @@ Suppose you have a backend API for "Products" with these DTO fields:
     },
     "createdAt": {
       "type": "offsetDateTime",
-      "displayFormat": "date"
+      "displayFormat": "date",
+      "displayPattern": "dd/MM/yyyy",
+      "responseDisplayFormat": "datetime"
     },
     "updatedAt": {
       "type": "offsetDateTime",
@@ -675,7 +767,7 @@ This config automatically gives you:
 - `productName` with full text search (contains, startswith, endswith, etc.)
 - `category` as a dropdown with 3 options
 - `price` with numeric comparisons (gt, lt, between, etc.) and minimum 0 validation
-- `createdAt` as date-only picker
+- `createdAt` as date-only filter picker, but date+time in table columns (`responseDisplayFormat`)
 - `updatedAt` as date+time picker with isnull/isnotnull (nullable)
 - `supplierEmail` with email validation and isnull/isnotnull (nullable)
 - Search bar types into `productName` with case-insensitive contains
@@ -748,6 +840,7 @@ The `SearchConfigProvider` fetches from the URL you provide:
 - [ ] Add `values` array for any `enum` fields
 - [ ] Set `nullable: true` for fields that can be `null` in the database
 - [ ] Choose `displayFormat` for date fields: `"date"` (date-only) or `"datetime"` (date+time)
+- [ ] Optionally set `responseDisplayFormat` if the table column should differ from the filter picker
 - [ ] Optionally set `operatorSet` or `operators` to restrict available operators
 - [ ] Add `validation` rules for fields that need client-side checks
 - [ ] Set `defaults.defaultField` and `defaults.defaultOperator` for the search bar
@@ -1048,7 +1141,7 @@ npm install
 # Build all packages (ESM + CJS + types)
 npm run build
 
-# Run tests (181 tests across 13 suites)
+# Run tests (191 tests across 13 suites)
 npm test
 
 # Watch mode
@@ -1075,8 +1168,11 @@ pia-ui-components/
 │   │   │   ├── sort.ts              # TMF630 sort serialize/deserialize/toggle
 │   │   │   ├── pagination.ts        # TMF630 header parsing (X-Total-Count, Content-Range)
 │   │   │   ├── compound.ts          # V2: AND/OR tree utilities
-│   │   │   └── config.ts            # Search config: parse, normalize, validate, operator presets
-│   │   └── tests/                   # 116 unit tests (core logic)
+│   │   │   ├── config.ts            # Search config: parse, normalize, validate, operator presets
+│   │   │   ├── jsonpath-filter.ts   # JsonPath filter= serialization (with date-boundary expansion)
+│   │   │   └── date-display.ts     # Custom date display formatting with pattern tokens
+│   │   ├── search-config.schema.json # JSON Schema for search-config.json (IDE autocomplete)
+│   │   └── tests/                   # 126 unit tests (core logic)
 │   └── tmf630-search-component/     # React UI
 │       ├── src/
 │       │   ├── FilterPanel.tsx       # Main filter panel
@@ -1099,7 +1195,7 @@ pia-ui-components/
 │       │   ├── SearchConfigContext.tsx # Config provider, useSearchConfig, useSearchFields
 │       │   ├── i18n/                 # en.ts, tr.ts label presets
 │       │   └── stories/              # Storybook stories
-│       └── tests/                    # 60 component + hook tests
+│       └── tests/                    # 65 component + hook tests
 ├── .storybook/                       # Storybook config
 ├── .github/workflows/ci.yml          # CI: build + test + publish
 └── vitest.config.ts                  # Test config
@@ -1140,6 +1236,8 @@ pia-ui-components/
 |--------|-------------|
 | `serializeFilters` | FilterCondition[] → query params |
 | `deserializeFilters` | Query params → FilterCondition[] |
+| `serializeToJsonPathFilter` | FilterGroup → `$[?(...)]` JsonPath expression (with date-boundary expansion) |
+| `deserializeJsonPathFilter` | `$[?(...)]` → FilterGroup |
 | `serializeSort` | SortState → TMF630 sort string (`-field` / `field`) |
 | `deserializeSort` | Sort string → SortState |
 | `toggleSort` | Three-way toggle: null → asc → desc → null |
@@ -1163,7 +1261,7 @@ pia-ui-components/
 | `buildSerializeOptions` | Config context → `SerializeFiltersOptions` |
 | `buildValidator` | Config context → per-field validation function |
 | `serializeResponseFields` | Config context → TMF630 `fields=` parameter |
-| `formatDateForDisplay` | Format date value using display pattern |
+| `formatDateForDisplay` | Format date/datetime value using a display pattern string (e.g. `"dd/MM/yyyy HH:mm"`). See [Display Pattern Tokens](#display-pattern-tokens). |
 | `formatDateValue` | Format date for wire/display based on field config |
 | `createSearchFilter` | Build a FilterCondition from search text + config defaults |
 | `setClassMerger` | Plug in tailwind-merge or custom merger |
@@ -1184,13 +1282,13 @@ pia-ui-components/
 | `FilterGroup` | Compound filter group `{ logic, conditions }` |
 | `FilterNode` | Union: `FilterCondition \| FilterGroup` |
 | `FilterLogic` | `"and" \| "or"` |
-| `FilterableField` | Field definition `{ name, label, type, displayFormat?, operators?, enumOptions?, validate? }` |
+| `FilterableField` | Field definition `{ name, label, type, displayFormat?, responseDisplayFormat?, operators?, enumOptions?, validate? }` |
 | `OperatorDefinition` | Operator metadata `{ value, requiresValue, isMultiValue }` |
 | `ValueInputSlotProps` | Props for `renderValueInput` callback `{ value, onChange, type, enumOptions, ... }` |
 | `BetweenValueInputProps` | Props for `BetweenValueInput` component |
 | `TagValueInputProps` | Props for `TagValueInput` component |
 | `MultiSelectInputProps` | Props for `MultiSelectInput` component |
-| `FieldConfig` | Config-level field descriptor `{ type, operatorSet, operators, nullable, values, validation }` |
+| `FieldConfig` | Config-level field descriptor `{ type, operatorSet, operators, nullable, values, validation, responseDisplayFormat }` |
 | `SearchConfig` | Parsed search-config structure |
 | `SearchContextConfig` | Single context within config (fields, defaults, responseFields) |
 

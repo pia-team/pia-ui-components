@@ -582,3 +582,72 @@ describe("createSearchFilter", () => {
     });
   });
 });
+
+describe("responseDisplayFormat", () => {
+  it("defaults to displayFormat when not specified", () => {
+    const config = parseSearchConfig({
+      fields: {
+        createdOn: { type: "offsetDateTime", displayFormat: "date" },
+      },
+    });
+    const ctx = getContext(config);
+    const field = ctx.fields[0]!;
+    expect(field.displayFormat).toBe("date");
+    expect(field.responseDisplayFormat).toBe("date");
+  });
+
+  it("can be set independently from displayFormat", () => {
+    const config = parseSearchConfig({
+      fields: {
+        createdOn: {
+          type: "offsetDateTime",
+          displayFormat: "date",
+          responseDisplayFormat: "datetime",
+        },
+      },
+    });
+    const ctx = getContext(config);
+    const field = ctx.fields[0]!;
+    expect(field.displayFormat).toBe("date");
+    expect(field.responseDisplayFormat).toBe("datetime");
+  });
+
+  it("defaults to type-derived displayFormat when neither is set", () => {
+    const config = parseSearchConfig({
+      fields: {
+        modifiedOn: { type: "offsetDateTime" },
+      },
+    });
+    const ctx = getContext(config);
+    const field = ctx.fields[0]!;
+    expect(field.displayFormat).toBe("datetime");
+    expect(field.responseDisplayFormat).toBe("datetime");
+  });
+
+  it("is null for non-temporal types", () => {
+    const config = parseSearchConfig({
+      fields: {
+        name: { type: "text" },
+      },
+    });
+    const ctx = getContext(config);
+    const field = ctx.fields[0]!;
+    expect(field.responseDisplayFormat).toBeNull();
+  });
+
+  it("is exposed in configToFilterableFields output", () => {
+    const config = parseSearchConfig({
+      fields: {
+        createdOn: {
+          type: "offsetDateTime",
+          displayFormat: "date",
+          responseDisplayFormat: "datetime",
+        },
+      },
+    });
+    const ctx = getContext(config);
+    const fields = configToFilterableFields(ctx);
+    expect(fields[0]!.displayFormat).toBe("date");
+    expect(fields[0]!.responseDisplayFormat).toBe("datetime");
+  });
+});

@@ -17,6 +17,8 @@ export interface FilterableField {
   type: FieldType;
   displayFormat?: "date" | "datetime";
   displayPattern?: string;
+  /** Display format for table/response columns. Falls back to displayFormat. */
+  responseDisplayFormat?: "date" | "datetime";
   enumOptions?: { value: string; label: string }[];
   /** Allowed operator codes. When set, only these operators are shown. */
   operators?: string[];

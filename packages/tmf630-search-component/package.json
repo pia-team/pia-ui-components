@@ -1,6 +1,6 @@
 {
   "name": "@pia-team/pia-ui-tmf630-search",
-  "version": "0.4.2",
+  "version": "0.4.4",
   "description": "TMF630 QueryDSL Search UI — headless hook + React components for rich filter panel",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -36,7 +36,7 @@
     }
   },
   "dependencies": {
-    "@pia-team/pia-ui-tmf630-query-core": "^0.4.2"
+    "@pia-team/pia-ui-tmf630-query-core": "^0.4.4"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

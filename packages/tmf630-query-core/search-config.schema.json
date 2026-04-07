@@ -1,0 +1,273 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/pia-team/pia-ui-components/search-config.schema.json",
+  "title": "TMF630 Search Config",
+  "description": "Configuration for the TMF630 QueryDSL search UI component. Supports single-context (flat) or multi-context format.",
+
+  "oneOf": [
+    { "$ref": "#/definitions/SingleContextConfig" },
+    { "$ref": "#/definitions/MultiContextConfig" }
+  ],
+
+  "definitions": {
+
+    "FilterOperator": {
+      "type": "string",
+      "enum": [
+        "eq", "ne", "eqi", "nei",
+        "gt", "gte", "lt", "lte",
+        "between", "in", "nin",
+        "isnull", "isnotnull",
+        "like", "likei",
+        "contains", "containsi",
+        "startswith", "startswithi",
+        "endswith", "endswithi",
+        "regex", "regexi"
+      ],
+      "description": "TMF630 QueryDSL filter operator. 22 operators total."
+    },
+
+    "FieldConfigType": {
+      "type": "string",
+      "enum": [
+        "text", "numeric", "enum", "email", "url",
+        "date", "dateTime", "offsetDateTime", "instant"
+      ],
+      "description": "Field data type. Determines default operators, input rendering, and wire format.\n- text: free-form string\n- numeric: integer or decimal\n- enum: fixed set of values (dropdown)\n- email: text with email validation\n- url: text with URL validation\n- date: Java LocalDate → YYYY-MM-DD\n- dateTime: Java LocalDateTime → YYYY-MM-DDTHH:mm:ss\n- offsetDateTime: Java OffsetDateTime → YYYY-MM-DDTHH:mm:ss+ZZ:ZZ\n- instant: Java Instant → UTC ISO-8601"
+    },
+
+    "DateDisplayFormat": {
+      "type": "string",
+      "enum": ["date", "datetime"],
+      "description": "Controls how the date/time picker is rendered.\n- \"date\": shows date-only picker (YYYY-MM-DD). When backend stores time (dateTime/offsetDateTime/instant), eq is auto-expanded to gte(00:00)/lt(nextDay:00:00).\n- \"datetime\": shows date + time picker."
+    },
+
+    "OperatorPreset": {
+      "type": "string",
+      "enum": ["text-search", "text-exact", "selection", "date-range", "numeric"],
+      "description": "Named operator preset. Selects a predefined set of operators.\n- text-search: eq, ne, contains, containsi, startswith, startswithi, endswith, endswithi, in, nin\n- text-exact: eq, ne, eqi, nei, in, nin\n- selection: eq, ne, in, nin\n- date-range: eq, ne, gt, gte, lt, lte, between\n- numeric: eq, ne, gt, gte, lt, lte, between, in, nin"
+    },
+
+    "EnumValue": {
+      "type": "object",
+      "required": ["displayName", "serverValue"],
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "Label shown to the user in the dropdown."
+        },
+        "serverValue": {
+          "type": "string",
+          "description": "Value sent to the backend in the query parameter."
+        }
+      }
+    },
+
+    "FieldValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "description": "If true, the field cannot be left empty."
+        },
+        "min": {
+          "type": "number",
+          "description": "Minimum numeric value (for type: numeric)."
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum numeric value (for type: numeric)."
+        },
+        "minLength": {
+          "type": "integer",
+          "description": "Minimum string length."
+        },
+        "maxLength": {
+          "type": "integer",
+          "description": "Maximum string length."
+        },
+        "pattern": {
+          "type": "string",
+          "description": "JavaScript regular expression the value must match."
+        },
+        "patternMessage": {
+          "type": "string",
+          "description": "Custom error message when the pattern does not match."
+        }
+      }
+    },
+
+    "FieldConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "default": "text",
+          "enum": [
+            "text", "numeric", "enum", "email", "url",
+            "date", "dateTime", "offsetDateTime", "instant"
+          ],
+          "description": "Field data type. Determines default operators, input rendering, and wire format.\n- text: free-form string (default)\n- numeric: integer or decimal\n- enum: fixed set of values (dropdown)\n- email: text with email validation\n- url: text with URL validation\n- date: Java LocalDate → YYYY-MM-DD\n- dateTime: Java LocalDateTime → YYYY-MM-DDTHH:mm:ss\n- offsetDateTime: Java OffsetDateTime → YYYY-MM-DDTHH:mm:ss+ZZ:ZZ\n- instant: Java Instant → UTC ISO-8601"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Label shown in the UI. Auto-derived from the field key (camelCase → Title Case) if omitted."
+        },
+        "displayFormat": {
+          "type": "string",
+          "enum": ["date", "datetime"],
+          "description": "Only for temporal types (date, dateTime, offsetDateTime, instant). Controls whether the picker shows date-only or date+time.\n- \"date\": date-only picker (YYYY-MM-DD). eq is auto-expanded to gte(00:00)/lt(nextDay:00:00) for timestamp types.\n- \"datetime\": date + time picker.\nDefaults: date→\"date\", dateTime/offsetDateTime/instant→\"datetime\"."
+        },
+        "displayPattern": {
+          "type": "string",
+          "description": "Custom date display pattern for temporal types. If omitted, inherits the context-level displayPattern.\nSupported tokens: yyyy (4-digit year), yy (2-digit year), MM (month 01-12), dd (day 01-31), HH (hour 24h 00-23), hh (hour 12h 01-12), mm (minutes 00-59), ss (seconds 00-59), a (AM/PM).\nSeparators: /, ., -, space, : are all supported.\nExamples: \"dd/MM/yyyy\", \"yyyy-MM-dd HH:mm\", \"dd.MM.yyyy HH:mm:ss\", \"MM/dd/yyyy hh:mm a\"."
+        },
+        "responseDisplayFormat": {
+          "type": "string",
+          "enum": ["date", "datetime"],
+          "description": "Display format for table/response columns. Independent of the filter displayFormat.\nExample: displayFormat=\"date\" (filter shows date-only picker) + responseDisplayFormat=\"datetime\" (table shows date+time).\nIf omitted, falls back to displayFormat."
+        },
+        "values": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/EnumValue" },
+          "description": "Fixed enum options. Only valid for type: \"enum\". Each entry: { \"displayName\": \"Label\", \"serverValue\": \"VALUE\" }."
+        },
+        "defaultOperator": {
+          "type": "string",
+          "enum": [
+            "eq", "ne", "eqi", "nei",
+            "gt", "gte", "lt", "lte",
+            "between", "in", "nin",
+            "isnull", "isnotnull",
+            "like", "likei",
+            "contains", "containsi",
+            "startswith", "startswithi",
+            "endswith", "endswithi",
+            "regex", "regexi"
+          ],
+          "description": "Pre-selected operator when this field is chosen. If omitted, the first operator in the resolved list is used."
+        },
+        "validation": {
+          "$ref": "#/definitions/FieldValidation",
+          "description": "Client-side validation rules applied to the input value."
+        },
+        "nullable": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, isnull/isnotnull operators are automatically appended to the operator list."
+        },
+        "operatorSet": {
+          "type": "string",
+          "enum": ["text-search", "text-exact", "selection", "date-range", "numeric"],
+          "description": "Named operator preset. Overrides auto-derived operators from type. Overridden by explicit \"operators\" array.\n- text-search: eq, ne, contains, containsi, startswith, startswithi, endswith, endswithi, in, nin\n- text-exact: eq, ne, eqi, nei, in, nin\n- selection: eq, ne, in, nin\n- date-range: eq, ne, gt, gte, lt, lte, between\n- numeric: eq, ne, gt, gte, lt, lte, between, in, nin"
+        },
+        "operators": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "eq", "ne", "eqi", "nei",
+              "gt", "gte", "lt", "lte",
+              "between", "in", "nin",
+              "isnull", "isnotnull",
+              "like", "likei",
+              "contains", "containsi",
+              "startswith", "startswithi",
+              "endswith", "endswithi",
+              "regex", "regexi"
+            ]
+          },
+          "description": "Explicit list of allowed operators. Highest priority — overrides both operatorSet and auto-derived operators."
+        }
+      }
+    },
+
+    "ContextDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultField": {
+          "type": "string",
+          "description": "Field name pre-selected by default when the search panel opens. Must match a key in 'fields'."
+        },
+        "defaultOperator": {
+          "type": "string",
+          "enum": [
+            "eq", "ne", "eqi", "nei",
+            "gt", "gte", "lt", "lte",
+            "between", "in", "nin",
+            "isnull", "isnotnull",
+            "like", "likei",
+            "contains", "containsi",
+            "startswith", "startswithi",
+            "endswith", "endswithi",
+            "regex", "regexi"
+          ],
+          "description": "Operator pre-selected by default for the default field."
+        }
+      }
+    },
+
+    "SearchContext": {
+      "type": "object",
+      "required": ["fields"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "JSON Schema reference for IDE autocomplete and validation. Ignored at runtime."
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/FieldConfig" },
+          "minProperties": 1,
+          "description": "Map of field name → field configuration. Keys become the query parameter names (e.g. \"createdOn\" → createdOn.eq=...)."
+        },
+        "defaults": {
+          "$ref": "#/definitions/ContextDefaults",
+          "description": "Default field and operator for this context."
+        },
+        "responseFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields to include in the API response (TMF630 'fields=' parameter). Omit to return all fields."
+        },
+        "displayPattern": {
+          "type": "string",
+          "description": "Default date display pattern for all temporal fields in this context. Individual fields can override with their own displayPattern.\nSupported tokens: yyyy, yy, MM, dd, HH, hh, mm, ss, a (AM/PM).\nExamples: \"dd/MM/yyyy HH:mm\", \"yyyy-MM-dd\", \"dd.MM.yyyy hh:mm a\"."
+        }
+      }
+    },
+
+    "SingleContextConfig": {
+      "description": "Flat single-context format. Used when the application has only one search context.",
+      "allOf": [{ "$ref": "#/definitions/SearchContext" }]
+    },
+
+    "MultiContextConfig": {
+      "type": "object",
+      "required": ["contexts"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "JSON Schema reference for IDE autocomplete and validation. Ignored at runtime."
+        },
+        "version": {
+          "type": "string",
+          "description": "Schema version. Currently \"1.0\".",
+          "default": "1.0"
+        },
+        "contexts": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/SearchContext" },
+          "minProperties": 1,
+          "description": "Named search contexts. Use when a single app has multiple independent search pages (e.g. \"transformations\", \"users\")."
+        }
+      }
+    }
+  }
+}
