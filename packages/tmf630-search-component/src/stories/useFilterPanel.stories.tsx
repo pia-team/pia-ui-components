@@ -63,9 +63,7 @@ function HeadlessDemo() {
             <div key={filter._id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <select
                 value={filter.field}
-                onChange={(e) =>
-                  hook.updateFilter(i, { ...filter, field: e.target.value })
-                }
+                onChange={(e) => hook.changeField(i, e.target.value)}
               >
                 <option value="">Field...</option>
                 {fields.map((f) => (
@@ -77,9 +75,7 @@ function HeadlessDemo() {
 
               <select
                 value={filter.operator}
-                onChange={(e) =>
-                  hook.updateFilter(i, { ...filter, operator: e.target.value as any })
-                }
+                onChange={(e) => hook.changeOperator(i, e.target.value)}
               >
                 {hook.getFieldOperators(filter.field).map((op) => (
                   <option key={op.value} value={op.value}>
@@ -160,9 +156,7 @@ function OperatorRestrictedDemo() {
               <div key={filter._id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                 <select
                   value={filter.field}
-                  onChange={(e) =>
-                    hook.updateFilter(i, { ...filter, field: e.target.value })
-                  }
+                  onChange={(e) => hook.changeField(i, e.target.value)}
                 >
                   <option value="">Field...</option>
                   {operatorRestrictedFields.map((f) => (
@@ -174,9 +168,7 @@ function OperatorRestrictedDemo() {
 
                 <select
                   value={filter.operator}
-                  onChange={(e) =>
-                    hook.updateFilter(i, { ...filter, operator: e.target.value as any })
-                  }
+                  onChange={(e) => hook.changeOperator(i, e.target.value)}
                 >
                   {hook.getFieldOperators(filter.field).map((op) => (
                     <option key={op.value} value={op.value}>

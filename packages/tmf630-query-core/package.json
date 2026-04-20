@@ -1,6 +1,6 @@
 {
   "name": "@pia-team/pia-ui-tmf630-query-core",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "description": "TMF630 QueryDSL core — framework-agnostic types, operators, serialization",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -25,8 +25,6 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "react": "^19.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0"
   },

@@ -260,4 +260,80 @@ describe("useFilterPanel", () => {
       { field: "status", operator: "nin", value: ["active"] },
     ]);
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  changeField / changeOperator                                       */
+  /* ------------------------------------------------------------------ */
+
+  it("changeField — keeps operator when valid for new field type", () => {
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        initialFilters: [{ field: "name", operator: "eq", value: "Alice" }],
+      }),
+    );
+    act(() => result.current.changeField(0, "age"));
+    expect(result.current.filters[0].field).toBe("age");
+    expect(result.current.filters[0].operator).toBe("eq");
+  });
+
+  it("changeField — auto-corrects operator when invalid for new field type", () => {
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        initialFilters: [{ field: "name", operator: "contains", value: "foo" }],
+      }),
+    );
+    act(() => result.current.changeField(0, "age"));
+    expect(result.current.filters[0].field).toBe("age");
+    expect(result.current.filters[0].operator).not.toBe("contains");
+  });
+
+  it("changeOperator — single to multi-value (in) converts value to array", () => {
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        initialFilters: [{ field: "name", operator: "eq", value: "Alice" }],
+      }),
+    );
+    act(() => result.current.changeOperator(0, "in"));
+    expect(result.current.filters[0].operator).toBe("in");
+    const val = result.current.filters[0].value;
+    expect(Array.isArray(val)).toBe(true);
+    expect(val).toContain("Alice");
+  });
+
+  it("changeOperator — multi to single (eq) converts array to string", () => {
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        initialFilters: [{ field: "name", operator: "in", value: ["Alice", "Bob"] }],
+      }),
+    );
+    act(() => result.current.changeOperator(0, "eq"));
+    expect(result.current.filters[0].operator).toBe("eq");
+    expect(typeof result.current.filters[0].value).toBe("string");
+  });
+
+  it("changeField / changeOperator — triggers onFilterChange callback", () => {
+    const onFilterChange = vi.fn();
+    const { result } = renderHook(() =>
+      useFilterPanel({
+        fields,
+        onFilterChange,
+        initialFilters: [{ field: "name", operator: "eq", value: "x" }],
+      }),
+    );
+    act(() => result.current.changeField(0, "age"));
+    expect(onFilterChange).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ field: "age" }),
+    );
+    onFilterChange.mockClear();
+    act(() => result.current.changeOperator(0, "gte"));
+    expect(onFilterChange).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ operator: "gte" }),
+    );
+  });
 });

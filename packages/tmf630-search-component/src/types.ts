@@ -163,6 +163,10 @@ export interface UseFilterPanelReturn {
   addFilter: () => void;
   removeFilter: (index: number) => void;
   updateFilter: (index: number, filter: FilterCondition) => void;
+  /** Change field at index, auto-correcting operator if needed. */
+  changeField: (index: number, fieldName: string) => void;
+  /** Change operator at index, adapting value type (single↔multi). */
+  changeOperator: (index: number, operator: string) => void;
   apply: () => void;
   clearAll: () => void;
   errors: Map<string, string>;

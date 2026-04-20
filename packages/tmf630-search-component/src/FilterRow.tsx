@@ -47,6 +47,10 @@ export interface FilterRowProps {
   labels: Labels;
   onUpdate: (index: number, filter: FilterCondition) => void;
   onRemove: (index: number) => void;
+  /** Smart field change — auto-corrects operator. Preferred over inline logic when provided. */
+  onFieldChange?: (index: number, fieldName: string) => void;
+  /** Smart operator change — adapts value type. Preferred over inline logic when provided. */
+  onOperatorChange?: (index: number, operator: string) => void;
   classNames?: FilterRowClassNames;
   unstyled?: boolean;
   icons?: FilterIcons;
@@ -91,6 +95,8 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
       labels,
       onUpdate,
       onRemove,
+      onFieldChange,
+      onOperatorChange,
       classNames: propClassNames,
       unstyled: propUnstyled,
       icons: propIcons,
@@ -124,6 +130,10 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
         : rawDisplayValue;
 
     const handleFieldChange = (fieldName: string) => {
+      if (onFieldChange) {
+        onFieldChange(index, fieldName);
+        return;
+      }
       const field = fields.find((f) => f.name === fieldName);
       const newType = field?.type ?? "text";
       const allNewOperators = getOperatorsForFieldType(newType, customFieldTypes);
@@ -153,6 +163,10 @@ export const FilterRow = React.forwardRef<HTMLDivElement, FilterRowProps>(
     const isInNin = filter.operator === "in" || filter.operator === "nin";
 
     const handleOperatorChange = (operator: string) => {
+      if (onOperatorChange) {
+        onOperatorChange(index, operator);
+        return;
+      }
       const op = operators.find((o) => o.value === operator);
       const newIsBetween = operator === "between";
       const newIsInNin = operator === "in" || operator === "nin";

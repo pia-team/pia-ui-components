@@ -104,13 +104,16 @@ export {
 } from "@pia-team/pia-ui-tmf630-query-core";
 export type {
   FilterOperator,
+  QueryParamValue,
   SearchParams,
   SortState,
+  SortDirection,
   SerializeFiltersOptions,
   FieldType as CoreFieldType,
   FilterLogic,
   FilterNode,
   FilterGroup,
+  PaginatedResult,
 } from "@pia-team/pia-ui-tmf630-query-core";
 
 export type {
@@ -130,6 +133,7 @@ export type {
 
 export {
   parseSearchConfig,
+  normalizeSearchConfig,
   getContext,
   configToFilterableFields,
   buildSerializeOptions,
@@ -137,8 +141,17 @@ export {
   serializeResponseFields,
   formatDateForDisplay,
   formatDateValue,
+  getLocalTimezoneOffset,
   serializeToJsonPathFilter,
   deserializeJsonPathFilter,
+  serializeSort,
+  deserializeSort,
+  toggleSort,
+  parseTMF630Headers,
+  camelToTitle,
+  isTemporalType,
+  getOperatorGroupForType,
+  getDefaultDisplayFormat,
   OPERATOR_PRESETS,
   createSearchFilter,
 } from "@pia-team/pia-ui-tmf630-query-core";
@@ -155,4 +168,26 @@ export {
   removeFromGroup,
   toggleGroupLogic,
   countConditions,
+} from "@pia-team/pia-ui-tmf630-query-core";
+
+/* -- V4: Filter panel state (framework-agnostic) ------------------- */
+export {
+  resolveDefaultRow,
+  getFieldOperators,
+  normalizeFilterRow,
+  createFilterPanelState,
+  addFilterRow,
+  removeFilterRow,
+  updateFilterRow,
+  applyFilterRows,
+  clearFilterRows,
+  validateFilterRows,
+  changeRowField,
+  changeRowOperator,
+  applyAndSerialize,
+} from "@pia-team/pia-ui-tmf630-query-core";
+export type {
+  FilterPanelField,
+  FilterPanelRow,
+  FilterPanelState,
 } from "@pia-team/pia-ui-tmf630-query-core";

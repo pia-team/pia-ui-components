@@ -2,72 +2,38 @@
 
 import { useState, useCallback, useMemo, useRef } from "react";
 import {
-  getOperatorsForFieldType,
-  operatorsRequireNoValue,
+  resolveDefaultRow,
+  getFieldOperators as coreGetFieldOperators,
+  normalizeFilterRow,
+  createFilterPanelState,
+  addFilterRow,
+  removeFilterRow,
+  updateFilterRow,
+  applyFilterRows,
+  clearFilterRows,
+  validateFilterRows,
+  changeRowField,
+  changeRowOperator,
 } from "@pia-team/pia-ui-tmf630-query-core";
 import type { FilterCondition, OperatorDefinition } from "@pia-team/pia-ui-tmf630-query-core";
 import type {
   UseFilterPanelOptions,
   UseFilterPanelReturn,
   DraftFilter,
-  FilterableField,
 } from "./types.js";
 
-const EMPTY_FILTER: FilterCondition = { field: "", operator: "eq", value: "" };
 const EMPTY_INITIAL: FilterCondition[] = [];
 
-function toDraft(f: FilterCondition): DraftFilter {
-  return { ...f, _id: crypto.randomUUID() };
-}
-
-function resolveDefaultRow(
-  defaultFilter: FilterCondition | undefined,
-  fields: FilterableField[],
-): FilterCondition {
-  const df = defaultFilter ?? EMPTY_FILTER;
-  const first = fields[0];
-  if (df.field && fields.some((f) => f.name === df.field)) {
-    return { field: df.field, operator: df.operator, value: df.value ?? "" };
-  }
-  if (first) return { field: first.name, operator: "eq", value: "" };
-  return df;
-}
-
-function filterOperators(
-  fieldDef: FilterableField | undefined,
-  fieldType: string,
-  customFieldTypes?: Record<string, OperatorDefinition[]>,
-): OperatorDefinition[] {
-  const all = getOperatorsForFieldType(fieldType, customFieldTypes);
-  if (fieldDef?.operators) {
-    return all.filter((op) => fieldDef.operators!.includes(op.value));
-  }
-  return all;
-}
-
-function normalizeFilter(
-  f: FilterCondition,
-  fields: FilterableField[],
-  fallback: FilterCondition,
-  customFieldTypes?: Record<string, OperatorDefinition[]>,
-): FilterCondition {
-  const validField =
-    f.field && fields.some((x) => x.name === f.field) ? f.field : fallback.field;
-  const fieldDef = fields.find((x) => x.name === validField);
-  const fieldType = fieldDef?.type ?? "text";
-  const ops = filterOperators(fieldDef, fieldType, customFieldTypes);
-  const validOperator = ops.some((o) => o.value === f.operator)
-    ? f.operator
-    : ops.some((o) => o.value === fallback.operator)
-      ? fallback.operator
-      : (ops[0]?.value ?? "eq");
-  if (f.field === validField && f.operator === validOperator) return f;
-  return { ...f, field: validField, operator: validOperator as FilterCondition["operator"] };
+function toDraft(row: { id: string; field: string; operator: string; value: string | string[] }): DraftFilter {
+  return { field: row.field, operator: row.operator as FilterCondition["operator"], value: row.value, _id: row.id };
 }
 
 /**
  * Headless hook for filter panel state management.
  * Provides all logic without any UI — consumers build their own components.
+ *
+ * Core state logic is delegated to @pia-team/pia-ui-tmf630-query-core
+ * (framework-agnostic pure functions). This hook is a thin React wrapper.
  */
 export function useFilterPanel(options: UseFilterPanelOptions): UseFilterPanelReturn {
   const {
@@ -101,12 +67,12 @@ export function useFilterPanel(options: UseFilterPanelOptions): UseFilterPanelRe
     [defaultFilter, fields],
   );
 
-  const [filters, setFilters] = useState<DraftFilter[]>(() => {
-    const source = initialFilters.length > 0 ? initialFilters : [defaultRow];
-    return source.map(toDraft);
-  });
-
-  const [errors, setErrors] = useState<Map<string, string>>(new Map());
+  const [panelState, setPanelState] = useState(() =>
+    createFilterPanelState(
+      initialFilters.length > 0 ? initialFilters : undefined,
+      defaultRow,
+    ),
+  );
 
   const initialKey = useMemo(() => JSON.stringify(initialFilters), [initialFilters]);
   const prevInitialKey = useRef<string | null>(null);
@@ -114,33 +80,31 @@ export function useFilterPanel(options: UseFilterPanelOptions): UseFilterPanelRe
     prevInitialKey.current = initialKey;
   } else if (initialKey !== prevInitialKey.current) {
     prevInitialKey.current = initialKey;
-    const source = initialFilters.length > 0 ? initialFilters : [defaultRow];
-    setFilters(source.map(toDraft));
+    setPanelState(
+      createFilterPanelState(
+        initialFilters.length > 0 ? initialFilters : undefined,
+        defaultRow,
+      ),
+    );
   }
 
-  const runValidation = useCallback(
-    (drafts: DraftFilter[]): Map<string, string> => {
-      const errs = new Map<string, string>();
-      for (const draft of drafts) {
-        const fieldDef = fields.find((f) => f.name === draft.field);
-        const globalErr = validate?.(draft, fieldDef);
-        const fieldErr = fieldDef?.validate?.(draft.value);
-        const err = globalErr ?? fieldErr;
-        if (err) errs.set(draft._id, err);
-      }
-      return errs;
-    },
-    [fields, validate],
+  const filters: DraftFilter[] = useMemo(
+    () => panelState.rows.map(toDraft),
+    [panelState.rows],
   );
+
+  const errors = panelState.errors;
 
   const openFn = useCallback(() => {
     if (!isOpen && fields.length > 0) {
-      setFilters((rows) =>
-        rows.map((f) => ({
-          ...normalizeFilter(f, fields, defaultRow, customFieldTypes),
-          _id: f._id,
-        })),
-      );
+      setPanelState((prev) => ({
+        ...prev,
+        rows: prev.rows.map((row) => {
+          const condition: FilterCondition = { field: row.field, operator: row.operator as FilterCondition["operator"], value: row.value };
+          const normalized = normalizeFilterRow(condition, fields, defaultRow, customFieldTypes);
+          return { ...row, field: normalized.field, operator: normalized.operator, value: normalized.value };
+        }),
+      }));
     }
     setOpen(true);
   }, [isOpen, fields, defaultRow, customFieldTypes, setOpen]);
@@ -153,65 +117,72 @@ export function useFilterPanel(options: UseFilterPanelOptions): UseFilterPanelRe
   }, [isOpen, openFn, closeFn]);
 
   const addFilter = useCallback(() => {
-    const newFilter = toDraft(defaultRow);
-    setFilters((prev) => [...prev, newFilter]);
+    setPanelState((prev) => addFilterRow(prev, defaultRow));
     onFilterAdd?.(defaultRow);
   }, [defaultRow, onFilterAdd]);
 
   const removeFilter = useCallback(
     (index: number) => {
-      setFilters((prev) => {
-        const removed = prev[index];
-        const next = prev.filter((_, i) => i !== index);
-        if (removed) onFilterRemove?.(index, removed);
-        return next.length > 0 ? next : [toDraft(defaultRow)];
+      setPanelState((prev) => {
+        const removed = prev.rows[index];
+        if (removed) onFilterRemove?.(index, { field: removed.field, operator: removed.operator as FilterCondition["operator"], value: removed.value });
+        return removeFilterRow(prev, index, defaultRow);
       });
     },
     [defaultRow, onFilterRemove],
   );
 
-  const updateFilter = useCallback(
+  const updateFilterCb = useCallback(
     (index: number, filter: FilterCondition) => {
-      setFilters((prev) => {
-        const next = [...prev];
-        if (prev[index]) {
-          next[index] = { ...filter, _id: prev[index]!._id };
-        }
-        return next;
-      });
+      setPanelState((prev) => updateFilterRow(prev, index, filter));
       onFilterChange?.(index, filter);
     },
     [onFilterChange],
   );
 
-  const apply = useCallback(() => {
-    const validationErrors = runValidation(filters);
-    setErrors(validationErrors);
-    if (validationErrors.size > 0) return;
-
-    const activeFilters = filters
-      .map(({ _id: _, ...rest }) => rest)
-      .filter((f) => {
-        if (operatorsRequireNoValue(f.operator)) return true;
-        if (Array.isArray(f.value))
-          return f.value.some((v) => String(v).trim() !== "");
-        return String(f.value ?? "").trim() !== "";
+  const changeFieldCb = useCallback(
+    (index: number, fieldName: string) => {
+      setPanelState((prev) => {
+        const next = changeRowField(prev, index, fieldName, fields, customFieldTypes);
+        const row = next.rows[index];
+        if (row) onFilterChange?.(index, { field: row.field, operator: row.operator as FilterCondition["operator"], value: row.value });
+        return next;
       });
-    onApply?.(activeFilters);
+    },
+    [fields, customFieldTypes, onFilterChange],
+  );
+
+  const changeOperatorCb = useCallback(
+    (index: number, operator: string) => {
+      setPanelState((prev) => {
+        const next = changeRowOperator(prev, index, operator, fields, customFieldTypes);
+        const row = next.rows[index];
+        if (row) onFilterChange?.(index, { field: row.field, operator: row.operator as FilterCondition["operator"], value: row.value });
+        return next;
+      });
+    },
+    [fields, customFieldTypes, onFilterChange],
+  );
+
+  const apply = useCallback(() => {
+    const validationErrors = validateFilterRows(panelState, fields, validate);
+    if (validationErrors.size > 0) {
+      setPanelState((prev) => ({ ...prev, errors: validationErrors }));
+      return;
+    }
+    setPanelState((prev) => ({ ...prev, errors: new Map() }));
+    onApply?.(applyFilterRows(panelState));
     setOpen(false);
-  }, [filters, runValidation, onApply, setOpen]);
+  }, [panelState, fields, validate, onApply, setOpen]);
 
   const clearAll = useCallback(() => {
-    setFilters([toDraft(defaultRow)]);
-    setErrors(new Map());
+    setPanelState(clearFilterRows(defaultRow));
     onApply?.([]);
   }, [defaultRow, onApply]);
 
-  const getFieldOperators = useCallback(
+  const getFieldOperatorsFn = useCallback(
     (fieldName: string): OperatorDefinition[] => {
-      const fieldDef = fields.find((f) => f.name === fieldName);
-      const fieldType = fieldDef?.type ?? "text";
-      return filterOperators(fieldDef, fieldType, customFieldTypes);
+      return coreGetFieldOperators(fieldName, fields, customFieldTypes);
     },
     [fields, customFieldTypes],
   );
@@ -224,10 +195,12 @@ export function useFilterPanel(options: UseFilterPanelOptions): UseFilterPanelRe
     filters,
     addFilter,
     removeFilter,
-    updateFilter,
+    updateFilter: updateFilterCb,
+    changeField: changeFieldCb,
+    changeOperator: changeOperatorCb,
     apply,
     clearAll,
     errors,
-    getFieldOperators,
+    getFieldOperators: getFieldOperatorsFn,
   };
 }

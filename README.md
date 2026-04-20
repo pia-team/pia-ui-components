@@ -79,8 +79,12 @@ Full control — use the hook, build your own UI:
 import { useFilterPanel } from "@pia-team/pia-ui-tmf630-search";
 
 function MyFilterPanel() {
-  const { filters, addFilter, removeFilter, updateFilter, apply, isOpen, toggle } =
-    useFilterPanel({
+  const {
+    filters, addFilter, removeFilter, updateFilter,
+    changeField,    // smart field change — auto-corrects operator
+    changeOperator, // smart operator change — adapts value (single ↔ multi)
+    apply, isOpen, toggle,
+  } = useFilterPanel({
       fields,
       onApply: handleApply,
       defaultFilter: { field: "name", operator: "containsi", value: "" },
@@ -93,7 +97,13 @@ function MyFilterPanel() {
         <div>
           {filters.map((f, i) => (
             <div key={f._id}>
-              {/* Build your own filter row UI */}
+              <select value={f.field} onChange={(e) => changeField(i, e.target.value)}>
+                {fields.map((fd) => <option key={fd.name} value={fd.name}>{fd.label}</option>)}
+              </select>
+              <select value={f.operator} onChange={(e) => changeOperator(i, e.target.value)}>
+                {/* render operators */}
+              </select>
+              {/* value input + remove button */}
             </div>
           ))}
           <button onClick={apply}>Apply</button>
@@ -113,6 +123,8 @@ import {
   CompoundFilterPanel,
   createGroup,
   flattenToConditions,
+  serializeFilters,
+  serializeCompound,
 } from "@pia-team/pia-ui-tmf630-search";
 import type { FilterGroup } from "@pia-team/pia-ui-tmf630-search";
 
@@ -1141,7 +1153,7 @@ npm install
 # Build all packages (ESM + CJS + types)
 npm run build
 
-# Run tests (191 tests across 13 suites)
+# Run tests (238 tests across 14 suites)
 npm test
 
 # Watch mode
@@ -1169,10 +1181,11 @@ pia-ui-components/
 │   │   │   ├── pagination.ts        # TMF630 header parsing (X-Total-Count, Content-Range)
 │   │   │   ├── compound.ts          # V2: AND/OR tree utilities
 │   │   │   ├── config.ts            # Search config: parse, normalize, validate, operator presets
-│   │   │   ├── jsonpath-filter.ts   # JsonPath filter= serialization (with date-boundary expansion)
-│   │   │   └── date-display.ts     # Custom date display formatting with pattern tokens
+│   │   │   ├── jsonpath-filter.ts       # JsonPath filter= serialization (with date-boundary expansion)
+│   │   │   ├── date-display.ts         # Custom date display formatting with pattern tokens
+│   │   │   └── filter-panel-state.ts   # Framework-agnostic filter panel state management
 │   │   ├── search-config.schema.json # JSON Schema for search-config.json (IDE autocomplete)
-│   │   └── tests/                   # 126 unit tests (core logic)
+│   │   └── tests/                   # 173 unit tests (core logic)
 │   └── tmf630-search-component/     # React UI
 │       ├── src/
 │       │   ├── FilterPanel.tsx       # Main filter panel
@@ -1199,6 +1212,95 @@ pia-ui-components/
 ├── .storybook/                       # Storybook config
 ├── .github/workflows/ci.yml          # CI: build + test + publish
 └── vitest.config.ts                  # Test config
+```
+
+## Filter Panel State Management (Framework-Agnostic)
+
+The `query-core` package provides pure state management functions for building filter panels in **any framework** (React, Angular, Vue, vanilla JS). No React dependency required.
+
+### Functions
+
+| Function | Description |
+|---|---|
+| `resolveDefaultRow(defaultFilter?, fields)` | Pick a valid default row from fields list |
+| `getFieldOperators(fieldName, fields, custom?)` | Get allowed operators for a field |
+| `normalizeFilterRow(filter, fields, fallback, custom?)` | Correct invalid field/operator combinations |
+| `createFilterPanelState(initialFilters?, defaultRow?)` | Create initial state |
+| `addFilterRow(state, defaultRow)` | Add a new row |
+| `removeFilterRow(state, index, defaultRow)` | Remove a row (min 1 guaranteed) |
+| `updateFilterRow(state, index, filter)` | Update a row, preserving its id |
+| `changeRowField(state, index, fieldName, fields, custom?)` | Change field, auto-correct operator if incompatible |
+| `changeRowOperator(state, index, operator, fields, custom?)` | Change operator, adapt value type (single ↔ multi) |
+| `applyFilterRows(state)` | Extract active `FilterCondition[]`, skipping empties |
+| `applyAndSerialize(state, serializeOptions)` | Apply + serialize to TMF630 query params in one call |
+| `clearFilterRows(defaultRow)` | Reset to one default row |
+| `validateFilterRows(state, fields, validate?)` | Run validation, returns `Map<id, error>` |
+
+`FilterPanelField` is structurally compatible with `SearchableField` — you can pass the output of `configToFilterableFields()` directly to all panel state functions. Fields support `enumOptions`, `displayFormat`, `displayPattern`, and `responseDisplayFormat`.
+
+### React usage
+
+The `useFilterPanel` hook in `@pia-team/pia-ui-tmf630-search` wraps these functions as a thin React adapter:
+
+```typescript
+import { useFilterPanel } from "@pia-team/pia-ui-tmf630-search";
+
+const {
+  filters, addFilter, removeFilter, apply,
+  changeField,    // smart field change: auto-corrects operator
+  changeOperator, // smart operator change: adapts value (single ↔ multi)
+} = useFilterPanel({
+  fields: configToFilterableFields(parseSearchConfig(config)),
+  onApply: (conditions) => fetchData(serializeFilters(conditions)),
+});
+```
+
+### Angular usage
+
+Angular projects use the core functions directly with `BehaviorSubject` or Signals:
+
+```typescript
+import {
+  resolveDefaultRow, createFilterPanelState,
+  addFilterRow, removeFilterRow, changeRowField,
+  changeRowOperator, applyFilterRows, applyAndSerialize,
+  getFieldOperators, configToFilterableFields, parseSearchConfig,
+} from "@pia-team/pia-ui-tmf630-query-core";
+
+@Injectable({ providedIn: "root" })
+export class FilterPanelService {
+  private fields = configToFilterableFields(parseSearchConfig(config));
+  private defaultRow = resolveDefaultRow(undefined, this.fields);
+  private state$ = new BehaviorSubject(
+    createFilterPanelState(undefined, this.defaultRow)
+  );
+
+  state = this.state$.asObservable();
+
+  addRow() {
+    this.state$.next(addFilterRow(this.state$.value, this.defaultRow));
+  }
+
+  remove(index: number) {
+    this.state$.next(removeFilterRow(this.state$.value, index, this.defaultRow));
+  }
+
+  changeField(index: number, fieldName: string) {
+    this.state$.next(changeRowField(this.state$.value, index, fieldName, this.fields));
+  }
+
+  changeOperator(index: number, op: string) {
+    this.state$.next(changeRowOperator(this.state$.value, index, op, this.fields));
+  }
+
+  getOperators(fieldName: string) {
+    return getFieldOperators(fieldName, this.fields);
+  }
+
+  apply() {
+    return applyFilterRows(this.state$.value);
+  }
+}
 ```
 
 ## API Reference
@@ -1264,11 +1366,30 @@ pia-ui-components/
 | `formatDateForDisplay` | Format date/datetime value using a display pattern string (e.g. `"dd/MM/yyyy HH:mm"`). See [Display Pattern Tokens](#display-pattern-tokens). |
 | `formatDateValue` | Format date for wire/display based on field config |
 | `createSearchFilter` | Build a FilterCondition from search text + config defaults |
+| `resolveDefaultRow` | Resolve default filter row from fields list and optional default |
+| `getFieldOperators` | Get allowed operators for a field, respecting allowlist |
+| `normalizeFilterRow` | Correct invalid field/operator on a filter row |
+| `createFilterPanelState` | Create initial filter panel state from filters |
+| `addFilterRow` | Add a new row to filter panel state |
+| `removeFilterRow` | Remove a row (guarantees min 1 row) |
+| `updateFilterRow` | Update a row, preserving its id |
+| `changeRowField` | Change a row's field, auto-correcting operator if incompatible |
+| `changeRowOperator` | Change a row's operator, adapting value type (single/multi) |
+| `applyFilterRows` | Extract active filters, skipping empty values |
+| `applyAndSerialize` | Apply + serialize to TMF630 query params in one step |
+| `clearFilterRows` | Reset to single default row |
+| `validateFilterRows` | Run validation, returns error map |
 | `setClassMerger` | Plug in tailwind-merge or custom merger |
 | `normalizeDateToISO` | Date string → ISO 8601 (timezone-aware) |
 | `normalizeDateTimeForDisplay` | Date/ISO string → `YYYY-MM-DD HH:mm` display |
 | `normalizeDateToYYYYMMDD` | Date string → YYYY-MM-DD |
 | `getLocalTimezoneOffset` | Runtime timezone offset (e.g. `+03:00`, `Z`) — via `@pia-team/pia-ui-tmf630-query-core` |
+| `normalizeSearchConfig` | Normalize raw config JSON (fill defaults, resolve presets) |
+| `camelToTitle` | Convert camelCase field name to Title Case label (`"createdOn"` → `"Created On"`) |
+| `isTemporalType` | Check if a field type is temporal (`date`, `dateTime`, `offsetDateTime`, `instant`) |
+| `getOperatorGroupForType` | Get the default operator preset name for a field type |
+| `getDefaultDisplayFormat` | Get the default `displayFormat` (`"date"` or `"datetime"`) for a temporal type |
+| `resolveLabels` | Merge partial label overrides with theme defaults |
 
 ### Types
 
@@ -1283,6 +1404,9 @@ pia-ui-components/
 | `FilterNode` | Union: `FilterCondition \| FilterGroup` |
 | `FilterLogic` | `"and" \| "or"` |
 | `FilterableField` | Field definition `{ name, label, type, displayFormat?, responseDisplayFormat?, operators?, enumOptions?, validate? }` |
+| `FilterPanelField` | Framework-agnostic field definition for panel state `{ name, label, type, operators?, validate? }` |
+| `FilterPanelRow` | Panel row `{ id, field, operator, value }` |
+| `FilterPanelState` | Panel state `{ rows: FilterPanelRow[], errors: Map }` |
 | `OperatorDefinition` | Operator metadata `{ value, requiresValue, isMultiValue }` |
 | `ValueInputSlotProps` | Props for `renderValueInput` callback `{ value, onChange, type, enumOptions, ... }` |
 | `BetweenValueInputProps` | Props for `BetweenValueInput` component |

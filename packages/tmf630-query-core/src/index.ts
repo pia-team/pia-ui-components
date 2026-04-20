@@ -98,3 +98,25 @@ export {
   serializeToJsonPathFilter,
   deserializeJsonPathFilter,
 } from "./jsonpath-filter.js";
+
+/* -- V4: Filter panel state (framework-agnostic) ------------------- */
+export {
+  resolveDefaultRow,
+  getFieldOperators,
+  normalizeFilterRow,
+  createFilterPanelState,
+  addFilterRow,
+  removeFilterRow,
+  updateFilterRow,
+  applyFilterRows,
+  clearFilterRows,
+  validateFilterRows,
+  changeRowField,
+  changeRowOperator,
+  applyAndSerialize,
+} from "./filter-panel-state.js";
+export type {
+  FilterPanelField,
+  FilterPanelRow,
+  FilterPanelState,
+} from "./filter-panel-state.js";
